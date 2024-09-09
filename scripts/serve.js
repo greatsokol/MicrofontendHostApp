@@ -1,33 +1,23 @@
 const compression = require('compression');
 const express = require('express');
 const fs = require('fs');
-const {createProxyMiddleware} = require('http-proxy-middleware');
 const app = express();
 const https = require('https');
 const cors = require("cors");
-//const Transform = require("stream").Transform;
 
-
-app.use(compression());
-app.use(express.static('dist/host', {maxAge: 0, index: false}));
-//app.use('/management', createProxyMiddleware({target: 'http://localhost:8083', changeOrigin: true}));
-// If you want to try webapp with an other target
-// app.use('/management', createProxyMiddleware({ target: 'https://apim-master-api.cloud.gravitee.io', changeOrigin: true, secure: false }));
-
-// app.all('/*', (req, res) => {
-//   res.sendFile('index.html', { root: 'dist/' });
-// });
-
-const localDir = "dist/host";
+const rootDir = "dist/host";
 const port = 4200;
-const nonce = '111';
+const nonce = '1111111';
 const dataUrl = "https://kcusers.local";
 const kcUrl = "https://keycloak.local";
 const allowedUrls = dataUrl + ' ' + kcUrl;
 
+app.use(compression());
+app.use(express.static(rootDir, {maxAge: 0, index: false}));
+
 app.use(cors());
 app.all("/*", (req, res) => {
-  let data = fs.readFileSync(localDir + '/index.html', 'utf8');
+  let data = fs.readFileSync(rootDir + '/index.html', 'utf8');
 
   let data_nonced = data.replaceAll('**CSP_NONCE**', nonce)
     .replaceAll('<script', '<script nonce="' + nonce + '" ')
@@ -40,7 +30,6 @@ app.all("/*", (req, res) => {
     "script-src 'self' 'strict-dynamic' 'nonce-" + nonce + "';" +
     "font-src 'self' data: " + allowedUrls + ";");
 
-  //res.setHeader("Content-Security-Policy", "trusted-types angular angular#unsafe-bypass; require-trusted-types-for 'script';");
   res.status(200).send(data_nonced);
 });
 
