@@ -12,10 +12,9 @@ const dataUrl = "https://kcusers.local";
 const kcUrl = "https://keycloak.local";
 const allowedUrls = dataUrl + ' ' + kcUrl;
 
+app.use(cors());
 app.use(compression());
 app.use(express.static(rootDir, {maxAge: 0, index: false}));
-
-app.use(cors());
 app.all("/*", (req, res) => {
   let data = fs.readFileSync(rootDir + '/index.html', 'utf8');
 
@@ -26,9 +25,14 @@ app.all("/*", (req, res) => {
 
   res.setHeader("Content-Security-Policy-Report-Only",
     "default-src 'self' " + allowedUrls + "; " +
-    "style-src 'self' 'nonce-" + nonce + "';" +
-    "script-src 'self' 'strict-dynamic' 'nonce-" + nonce + "';" +
+    "img-src 'self' data: image/svg+xml " + allowedUrls + "; " +
+    "style-src 'self' 'nonce-" + nonce + "'; " +
+    "script-src 'self' 'strict-dynamic' 'nonce-" + nonce + "'; " +
     "font-src 'self' data: " + allowedUrls + ";");
+
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "X-Requested-With, content-type, Authorization");
 
   res.status(200).send(data_nonced);
 });
