@@ -1,4 +1,4 @@
-import {APP_INITIALIZER, Inject, inject, Injectable, OnInit, Provider} from "@angular/core";
+import {Inject, inject, Injectable} from "@angular/core";
 import {KeycloakEventType, KeycloakService} from "keycloak-angular";
 import {AuthContext} from "./types/authcontext";
 import {KeycloakProfile} from "keycloak-js";
@@ -54,7 +54,7 @@ export class AuthService {
   }
 
   constructor(@Inject('appConfig') private readonly appConfig: AppConfig) {
-    console.log("AUTH SERVICE CSTR", appConfig);
+    //console.log("AUTH SERVICE CSTR", appConfig);
     initializeKeycloak(this.keycloakService, this.appConfig);
 
     this.keycloakService.keycloakEvents$.subscribe(event => {
@@ -104,6 +104,12 @@ export class AuthService {
     return this.keycloakProfile != null;
   }
 
+  private getAllRolesWithGroups = () => {
+    const token = this.keycloakService.getKeycloakInstance().tokenParsed;
+    // "groups" claim is a PSB specific
+    return this.keycloakService.getUserRoles().concat(token ? token['groups'] : []);
+  }
+
   public getAuthContext = (): null | AuthContext => {
     if (!this.isLoggedIn()) {
       this.authContext = null;
@@ -115,12 +121,11 @@ export class AuthService {
 
     this.authContext = {
       userName: this.keycloakService.getUsername(),
-      userRoles: this.keycloakService.getUserRoles(),
+      userRoles: this.getAllRolesWithGroups(),
       logoutFunc: this.logout,
       profileId: this.keycloakProfile?.id,
       sessionId: this.sessionId
     };
-
     return this.authContext;
   }
 }

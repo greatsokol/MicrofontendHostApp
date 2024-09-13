@@ -15,7 +15,6 @@ export class HostAppComponent {
   protected readonly router = inject(Router);
 
   constructor() {
-    console.log("HOST", this.authService);
   }
 
 }
