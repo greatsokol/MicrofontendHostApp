@@ -106,8 +106,9 @@ export class AuthService {
 
   private getAllRolesWithGroups = () => {
     const token = this.keycloakService.getKeycloakInstance().tokenParsed;
-    // "groups" claim is a PSB specific
-    return this.keycloakService.getUserRoles().concat(token ? token['groups'] : []);
+    const groups = token ? token['groups'] : null; // "groups" claim is a PSB specific
+    const roles = this.keycloakService.getUserRoles()
+    return groups ? roles.concat(groups) : roles;
   }
 
   public getAuthContext = (): null | AuthContext => {

@@ -1,7 +1,7 @@
 export const appConfig = {
   keycloak: {
     url: "https://keycloak.local",
-    realm: "master",
+    realm: "APIM",
     clientId: "microfrontends_client"
   }
 }
