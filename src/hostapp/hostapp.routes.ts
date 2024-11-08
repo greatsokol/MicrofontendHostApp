@@ -14,13 +14,11 @@ export const APP_ROUTES: Routes = [
   {
     path: "example",
     loadChildren: () => {
-      debugger;
       return loadRemoteModule({
         type: "manifest",
         remoteName: "mf_example",
         exposedModule: "./ExampleModule"
       }).then(m => {
-        debugger;
         return m.ExposingModule;
       });
     }
