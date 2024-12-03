@@ -1,7 +1,6 @@
 export type AppConfig = {
   keycloak: {
-    url: string,
-    realm: string,
+    issuer: string,
     clientId: string
   }
 }

@@ -1,18 +1,20 @@
 import {NgModule} from "@angular/core";
-import {KeycloakService} from "keycloak-angular";
 import {HttpClientModule} from "@angular/common/http";
-import {KeycloakBearerInterceptorProvider} from "./keycloak";
+import {OAuthModule} from "angular-oauth2-oidc";
 
 @NgModule({
   declarations: [],
   imports: [
-    HttpClientModule
+    HttpClientModule,
+    OAuthModule.forRoot({
+      resourceServer:{
+        allowedUrls: ["http"],
+        sendAccessToken: true
+      }
+    }
+    ),
   ],
   providers: [
-    KeycloakService,
-    //AuthService,
-    //KeycloakInitializerProvider,
-    KeycloakBearerInterceptorProvider
   ],
   exports: []
 })

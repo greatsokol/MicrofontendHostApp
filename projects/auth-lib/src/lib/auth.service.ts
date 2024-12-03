@@ -1,144 +1,105 @@
 import {Inject, inject, Injectable} from "@angular/core";
-import {KeycloakEventType, KeycloakService} from "keycloak-angular";
+import {AuthConfig, OAuthService, OAuthSuccessEvent} from "angular-oauth2-oidc";
 import {AuthContext} from "./types/authcontext";
-import {KeycloakProfile} from "keycloak-js";
-import {initializeKeycloak} from "./keycloak";
 import {AppConfig} from "./types/appconfig";
+
+type onReadyCallback = ()=>void;
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private keycloakService = inject(KeycloakService);
-  private keycloakProfile: KeycloakProfile | null = null;
-  private authContext: AuthContext | null = null;
-  private sessionId: string | undefined = undefined;
-
-  private clearContext = () => {
-    this.keycloakProfile = null;
-    this.authContext = null;
-  }
-
-  private updateProfile(callback: (() => void) | null) {
-    this.keycloakService.loadUserProfile()
-      .then(profile => {
-        this.keycloakProfile = profile;
-        this.sessionId = this.keycloakService.getKeycloakInstance().sessionId;
-        console.log("Successfully updated keycloak user profile and sessionId", this.keycloakProfile, this.sessionId);
-        if (callback) {
-          console.log("KeycloakEventType.OnReady subscription callback");
-          callback();
-        }
-      })
-      .catch(err => {
-        this.clearContext();
-        console.error("Failed to load keycloak user profile", err);
-      });
-  }
-
-  public subscribeOnKeycloakReady(callback: () => void) {
-    this.keycloakService.keycloakEvents$.subscribe(event => {
-        if (event.type === KeycloakEventType.OnReady) {
-          this.updateProfile(callback);
-        }
-      }
-    );
-  }
-
-  public unsubscribe() {
-    try {
-      this.keycloakService.keycloakEvents$.unsubscribe();
-    } catch (e) {
-      console.log(e);
-    }
-  }
+  private oAuthService = inject(OAuthService);
+  private onReadyHandlersSet = new Set<onReadyCallback>();
 
   constructor(@Inject('appConfig') private readonly appConfig: AppConfig) {
-    //console.log("AUTH SERVICE CSTR", appConfig);
-    initializeKeycloak(this.keycloakService, this.appConfig);
+    this.initializeOAuth(this.oAuthService, this.appConfig);
+  }
 
-    this.keycloakService.keycloakEvents$.subscribe(event => {
-      if (event.type === KeycloakEventType.OnAuthError) {
-        //console.log("KeycloakEventType.OnAuthError", event.args);
-      } else if (event.type === KeycloakEventType.OnAuthLogout) {
-        //console.log("KeycloakEventType.OnAuthLogout", event.args);
-        this.clearContext();
-      } else if (event.type === KeycloakEventType.OnAuthRefreshError) {
-        //console.log("KeycloakEventType.OnAuthRefreshError", event.args);
-      } else if (event.type === KeycloakEventType.OnAuthSuccess) {
-        //console.log("KeycloakEventType.OnAuthSuccess", event.args);
-      } else if (event.type === KeycloakEventType.OnActionUpdate) {
-        //console.log("KeycloakEventType.OnActionUpdate", event.args);
-      } else if (event.type === KeycloakEventType.OnAuthRefreshSuccess) {
-        //console.log("KeycloakEventType.OnAuthRefreshSuccess", event.args);
-      } else if (event.type === KeycloakEventType.OnReady) {
-        //console.log("KeycloakEventType.OnReady", event.args);
-        this.updateProfile(null);
-      } else if (event.type === KeycloakEventType.OnTokenExpired) {
-        //console.log("KeycloakEventType.OnTokenExpired", event.args);
-        this.keycloakService
-          .updateToken(20)
-          .then(res => {
-            if (res) {
-              console.log("Successfully updated token");
-            } else {
-              console.error("Failed to update keycloak token. No further information.");
-            }
-          })
-          .catch(err => {
-            this.clearContext();
-            console.error("Failed to update keycloak token", err);
-          });
-      }
-    })
-
+  public subscribeOnKeycloakReady = (func: onReadyCallback) => {
+    this.onReadyHandlersSet.add(func);
   }
 
   public logout = (): void => {
-    this.keycloakProfile = null;
-    this.keycloakService.logout().then(() => console.warn("Logged out"));
+    this.oAuthService.logOut();
   }
 
   public isLoggedIn(): boolean {
-    //console.log("isLoggedIn:", this.keycloakProfile != null, "username:", this.keycloakService.getUsername() );
-    return this.keycloakProfile != null;
+    return this.oAuthService.hasValidAccessToken();
   }
 
-  private getAllRolesWithGroups = () => {
-    const token = this.keycloakService.getKeycloakInstance().tokenParsed;
-    const groups = token ? token['groups'] : null; // "groups" claim is a PSB specific
-    const roles = this.keycloakService.getUserRoles()
+  private getParsedAccessToken(): any {
+    const token = this.oAuthService.getAccessToken();
+    if (!token) return null;
+    return JSON.parse(atob(token.split('.')[1]));
+  }
+
+  private getAllRolesWithGroups = (accessToken: any) => {
+    if(!accessToken) return [];
+    const groups = accessToken ? accessToken['groups'] : null; // "groups" claim is a PSB specific
+    const roles = accessToken["realm_access"]["roles"];
     return groups ? roles.concat(groups) : roles;
   }
 
   public getAuthContext = (): null | AuthContext => {
     if (!this.isLoggedIn()) {
-      this.authContext = null;
       return null;
     }
-    if (this.authContext != null) {
-      return this.authContext;
-    }
 
-    this.authContext = {
-      userName: this.keycloakService.getUsername(),
-      userRoles: this.getAllRolesWithGroups(),
+    const accessToken = this.getParsedAccessToken();
+    const preferred_username: string = accessToken ? accessToken["preferred_username"] : "";
+    const userRoles = this.getAllRolesWithGroups(accessToken);
+    const sessionId = accessToken ? accessToken["sid"] : "";
+
+    return {
+      userName: preferred_username,
+      userRoles: userRoles,
       logoutFunc: this.logout,
-      profileId: this.keycloakProfile?.id,
-      sessionId: this.sessionId
+      //profileId: "",
+      sessionId: sessionId
     };
-    return this.authContext;
+  }
+
+  private initializeOAuth = (oAuthService: OAuthService, appConfig: AppConfig) => {
+    const authConfig: AuthConfig = {
+      // Url of the Identity Provider
+      issuer: appConfig.keycloak.issuer,
+      // URL of the SPA to redirect the user to after login
+      redirectUri: window.location.origin,// + '/index.html',
+      // The SPA's id. The SPA is registerd with this id at the auth-server
+      // clientId: 'server.code',
+      clientId: appConfig.keycloak.clientId,
+      // Just needed if your auth server demands a secret. In general, this
+      // is a sign that the auth server is not configured with SPAs in mind
+      // and it might not enforce further best practices vital for security
+      // such applications.
+      // dummyClientSecret: 'secret',
+      responseType: 'code',
+      // set the scope for the permissions the client should request
+      // The first four are defined by OIDC.
+      // Important: Request offline_access to get a refresh token
+      // The api scope is a usecase specific one
+      scope: 'openid', //profile email offline_access api
+      //showDebugInformation: true,
+    };
+
+    oAuthService.configure(authConfig);
+    oAuthService.setupAutomaticSilentRefresh();
+    oAuthService.events.subscribe((event) => {
+      if(event instanceof OAuthSuccessEvent && event.type == "token_received"){
+        this.onReadyHandlersSet.forEach(callbackFunc => {
+          try {
+            callbackFunc()
+          } catch (err) {
+            console.error(err);
+          }
+        });
+      }
+    });
+    oAuthService.loadDiscoveryDocumentAndLogin().then(r => {});
   }
 }
 
-// export const AuthServiceProvider: Provider = {
-//   provide: APP_INITIALIZER,
-//   useFactory: (keycloak: KeycloakService) => () => {
-//     console.log("authServiceProvider FACTORY");
-//     initializeKeycloak(keycloak, null);
-//   },
-//   multi: true,
-//   deps: [KeycloakService]
-// }
+
 
 
