@@ -1,9 +1,9 @@
 import {Inject, inject, Injectable} from "@angular/core";
-import {AuthConfig, OAuthService, OAuthSuccessEvent} from "angular-oauth2-oidc";
+import {AuthConfig, OAuthErrorEvent, OAuthService, OAuthSuccessEvent} from "angular-oauth2-oidc";
 import {AuthContext} from "./types/authcontext";
 import {AppConfig} from "./types/appconfig";
 
-type onReadyCallback = ()=>void;
+type onReadyCallback = () => void;
 
 @Injectable({
   providedIn: 'root'
@@ -21,7 +21,8 @@ export class AuthService {
   }
 
   public logout = (): void => {
-    this.oAuthService.logOut();
+    this.oAuthService.revokeTokenAndLogout().then(() => {
+    });
   }
 
   public isLoggedIn(): boolean {
@@ -35,7 +36,7 @@ export class AuthService {
   }
 
   private getAllRolesWithGroups = (accessToken: any) => {
-    if(!accessToken) return [];
+    if (!accessToken) return [];
     const groups = accessToken ? accessToken['groups'] : null; // "groups" claim is a PSB specific
     const roles = accessToken["realm_access"]["roles"];
     return groups ? roles.concat(groups) : roles;
@@ -86,7 +87,7 @@ export class AuthService {
     oAuthService.configure(authConfig);
     oAuthService.setupAutomaticSilentRefresh();
     oAuthService.events.subscribe((event) => {
-      if(event instanceof OAuthSuccessEvent && event.type == "token_received"){
+      if (event instanceof OAuthSuccessEvent && event.type == "token_received") {
         this.onReadyHandlersSet.forEach(callbackFunc => {
           try {
             callbackFunc()
@@ -94,9 +95,12 @@ export class AuthService {
             console.error(err);
           }
         });
+      } else if (event instanceof OAuthErrorEvent) {
+        this.logout();
       }
     });
-    oAuthService.loadDiscoveryDocumentAndLogin().then(r => {});
+    oAuthService.loadDiscoveryDocumentAndLogin().then(r => {
+    });
   }
 }
 
