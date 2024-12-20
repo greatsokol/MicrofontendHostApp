@@ -1,32 +1,41 @@
 import {Inject, inject, Injectable} from "@angular/core";
-import {AuthConfig, OAuthErrorEvent, OAuthService, OAuthSuccessEvent} from "angular-oauth2-oidc";
+import {AuthConfig, OAuthErrorEvent, OAuthService} from "angular-oauth2-oidc";
 import {AuthContext} from "./types/authcontext";
 import {AppConfig} from "./types/appconfig";
 
 type onReadyCallback = () => void;
+type onReadyCallbackAndCount = {
+  func: onReadyCallback;
+  once?: boolean;
+};
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private oAuthService = inject(OAuthService);
-  private onReadyHandlersSet = new Set<onReadyCallback>();
+  private onReadyHandlersSet = new Set<onReadyCallbackAndCount>();
+  private loggedIn: boolean = false;
 
   constructor(@Inject('appConfig') private readonly appConfig: AppConfig) {
     this.initializeOAuth(this.oAuthService, this.appConfig);
   }
 
   public subscribeOnKeycloakReady = (func: onReadyCallback) => {
-    this.onReadyHandlersSet.add(func);
+    this.onReadyHandlersSet.add({func});
+  }
+
+  public subscribeOnKeycloakReadyOnce = (func: onReadyCallback) => {
+    this.onReadyHandlersSet.add({func, once: true});
   }
 
   public logout = (): void => {
-    this.oAuthService.revokeTokenAndLogout().then(() => {
-    });
+    this.oAuthService.logOut();
+    this.loggedIn = false;
   }
 
   public isLoggedIn(): boolean {
-    return this.oAuthService.hasValidAccessToken();
+    return this.loggedIn;//this.oAuthService.hasValidAccessToken();
   }
 
   private getParsedAccessToken(): any {
@@ -61,6 +70,21 @@ export class AuthService {
     };
   }
 
+  private callSubscribers = () => {
+    const countBefore = this.onReadyHandlersSet.size;
+    this.onReadyHandlersSet.forEach(callbackFuncAndCount => {
+      try {
+        callbackFuncAndCount.func();
+      } catch (err) {
+        console.error("Callback error: ", err);
+      }
+      if (callbackFuncAndCount.once) {
+        this.onReadyHandlersSet.delete(callbackFuncAndCount);
+      }
+    });
+    console.log(`AuthService subscribers count ${countBefore} -> ${this.onReadyHandlersSet.size}`);
+  }
+
   private initializeOAuth = (oAuthService: OAuthService, appConfig: AppConfig) => {
     const authConfig: AuthConfig = {
       // Url of the Identity Provider
@@ -81,29 +105,23 @@ export class AuthService {
       // Important: Request offline_access to get a refresh token
       // The api scope is a usecase specific one
       scope: 'openid', //profile email offline_access api
-      //showDebugInformation: true,
+      showDebugInformation: true,
     };
 
     oAuthService.configure(authConfig);
     oAuthService.setupAutomaticSilentRefresh();
     oAuthService.events.subscribe((event) => {
-      if (event instanceof OAuthSuccessEvent && event.type == "token_received") {
-        this.onReadyHandlersSet.forEach(callbackFunc => {
-          try {
-            callbackFunc()
-          } catch (err) {
-            console.error(err);
-          }
-        });
-      } else if (event instanceof OAuthErrorEvent) {
+      // if (event instanceof OAuthSuccessEvent && event.type == "token_received") {
+      //   this.callSubscribers();
+      // } else
+      if (event instanceof OAuthErrorEvent) {
         this.logout();
       }
     });
-    oAuthService.loadDiscoveryDocumentAndLogin().then(r => {
+    oAuthService.loadDiscoveryDocumentAndLogin().then(() => {
+      console.log("Logged in successfully");
+      this.loggedIn = true;
+      this.callSubscribers();
     });
   }
 }
-
-
-
-
