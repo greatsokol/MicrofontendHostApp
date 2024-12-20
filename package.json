@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve host",
+    "start": "ng build auth-lib && ng serve host",
     "serve:prod": "node scripts/serve.js",
     "build": "ng build auth-lib && ng build host",
     "watch": "ng build --watch --configuration development",

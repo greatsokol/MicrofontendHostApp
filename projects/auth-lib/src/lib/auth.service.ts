@@ -1,47 +1,42 @@
 import {Inject, inject, Injectable} from "@angular/core";
-import {AuthConfig, OAuthErrorEvent, OAuthService} from "angular-oauth2-oidc";
+import {AuthConfig, OAuthService} from "angular-oauth2-oidc";
 import {AuthContext} from "./types/authcontext";
 import {AppConfig} from "./types/appconfig";
-
-type onReadyCallback = () => void;
-type onReadyCallbackAndCount = {
-  func: onReadyCallback;
-  once?: boolean;
-};
+import {BehaviorSubject, Observable} from "rxjs";
+import {filter} from "rxjs/operators";
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private oAuthService = inject(OAuthService);
-  private onReadyHandlersSet = new Set<onReadyCallbackAndCount>();
-  private loggedIn: boolean = false;
+  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
+  private isAuthenticated = this.isAuthenticatedSubject.asObservable();
+  private authContext: AuthContext | null = null;
 
   constructor(@Inject('appConfig') private readonly appConfig: AppConfig) {
     this.initializeOAuth(this.oAuthService, this.appConfig);
   }
 
-  public subscribeOnKeycloakReady = (func: onReadyCallback) => {
-    this.onReadyHandlersSet.add({func});
-  }
-
-  public subscribeOnKeycloakReadyOnce = (func: onReadyCallback) => {
-    this.onReadyHandlersSet.add({func, once: true});
-  }
-
   public logout = (): void => {
+    this.resetAuthContext();
     this.oAuthService.logOut();
-    this.loggedIn = false;
   }
 
   public isLoggedIn(): boolean {
-    return this.loggedIn;//this.oAuthService.hasValidAccessToken();
+    return this.oAuthService.hasValidAccessToken();
   }
 
-  private getParsedAccessToken(): any {
-    const token = this.oAuthService.getAccessToken();
-    if (!token) return null;
-    return JSON.parse(atob(token.split('.')[1]));
+  public onLoggedIn(): Observable<boolean> {
+    return this.isAuthenticated;
+  }
+
+  private getDecodedAccessToken = () => {
+    const rawAccessToken = this.oAuthService.getAccessToken();
+    if (!rawAccessToken) {
+      return null;
+    }
+    return JSON.parse(atob(rawAccessToken.split('.')[1]));
   }
 
   private getAllRolesWithGroups = (accessToken: any) => {
@@ -52,37 +47,31 @@ export class AuthService {
   }
 
   public getAuthContext = (): null | AuthContext => {
-    if (!this.isLoggedIn()) {
+    if (this.authContext) return this.authContext;
+
+    const accessToken = this.getDecodedAccessToken();
+    if (!accessToken) {
+      console.debug("getAuthContext: NO VALID ACCESS TOKEN")
       return null;
     }
+    console.debug("getAuthContext token:", accessToken);
 
-    const accessToken = this.getParsedAccessToken();
     const preferred_username: string = accessToken ? accessToken["preferred_username"] : "";
     const userRoles = this.getAllRolesWithGroups(accessToken);
     const sessionId = accessToken ? accessToken["sid"] : "";
 
-    return {
+    this.authContext = {
       userName: preferred_username,
       userRoles: userRoles,
       logoutFunc: this.logout,
-      //profileId: "",
       sessionId: sessionId
     };
+
+    return this.authContext;
   }
 
-  private callSubscribers = () => {
-    const countBefore = this.onReadyHandlersSet.size;
-    this.onReadyHandlersSet.forEach(callbackFuncAndCount => {
-      try {
-        callbackFuncAndCount.func();
-      } catch (err) {
-        console.error("Callback error: ", err);
-      }
-      if (callbackFuncAndCount.once) {
-        this.onReadyHandlersSet.delete(callbackFuncAndCount);
-      }
-    });
-    console.log(`AuthService subscribers count ${countBefore} -> ${this.onReadyHandlersSet.size}`);
+  private resetAuthContext = () => {
+    this.authContext = null;
   }
 
   private initializeOAuth = (oAuthService: OAuthService, appConfig: AppConfig) => {
@@ -107,21 +96,44 @@ export class AuthService {
       scope: 'openid', //profile email offline_access api
       showDebugInformation: true,
     };
-
     oAuthService.configure(authConfig);
     oAuthService.setupAutomaticSilentRefresh();
-    oAuthService.events.subscribe((event) => {
-      // if (event instanceof OAuthSuccessEvent && event.type == "token_received") {
-      //   this.callSubscribers();
-      // } else
-      if (event instanceof OAuthErrorEvent) {
+    oAuthService.events
+      .pipe(filter((e: any) => e.type === "token_received"))
+      .subscribe(() => {
+        this.resetAuthContext();
+        console.debug("token_received");
+      });
+    oAuthService.events
+      .pipe(filter((e: any) => e.type === "token_error"))
+      .subscribe(() => {
+        this.resetAuthContext();
+        console.debug("token_error");
         this.logout();
+      });
+    oAuthService.events
+      .pipe(filter((e: any) => e.type === "token_expired"))
+      .subscribe(() => {
+        this.resetAuthContext();
+        console.debug("token_expired");
+      });
+    oAuthService.events
+      .subscribe(() => {
+        this.isAuthenticatedSubject.next(this.oAuthService.hasValidAccessToken())
+      });
+
+    oAuthService.loadDiscoveryDocumentAndLogin().then(isLoggedIn => {
+      this.resetAuthContext();
+      if (isLoggedIn) {
+        console.debug("Logged in successfully");
+      } else {
+        console.debug("Not logged in");
       }
-    });
-    oAuthService.loadDiscoveryDocumentAndLogin().then(() => {
-      console.log("Logged in successfully");
-      this.loggedIn = true;
-      this.callSubscribers();
+    }, error => {
+      console.debug({error});
+      if (error.status === 400) {
+        location.reload();
+      }
     });
   }
 }
