@@ -1,10 +1,22 @@
 import {Inject, Injectable, OnDestroy} from "@angular/core";
 import {AuthConfig, OAuthEvent, OAuthService} from "angular-oauth2-oidc";
-import {AuthContext} from "./types/authcontext";
+import {AuthContext, ResolveType} from "./types/authcontext";
 import {AppConfig} from "./types/appconfig";
 import {Subscription} from "rxjs";
 
-type ResolveType = (value: boolean | PromiseLike<boolean>) => void;
+const storageKeys: string[] = ["PKCE_verifier",
+  "access_token",
+  "access_token_stored_at",
+  "expires_at",
+  "granted_scopes",
+  "id_token",
+  "id_token_claims_obj",
+  "id_token_expires_at",
+  "id_token_stored_at",
+  "kc-users-session",
+  "nonce",
+  "refresh_token",
+  "session_state"];
 
 @Injectable({
   providedIn: 'root'
@@ -13,17 +25,20 @@ export class AuthService implements OnDestroy {
   private authContext: AuthContext | null = null;
   private events$: Subscription | null = null;
 
+
   constructor(private oAuthService: OAuthService, @Inject('appConfig') private readonly appConfig: AppConfig) {
     this.debug("Constructor host");
   }
 
   private initialize() {//resolve: ResolveType
     return new Promise<boolean>((resolve: ResolveType) => {
+      storageKeys.forEach(key => localStorage.removeItem(key));
+
       const authConfig: AuthConfig = {
         // Url of the Identity Provider
         issuer: this.appConfig.keycloak.issuer,
         // URL of the SPA to redirect the user to after login
-        redirectUri: location.origin,// + '/index.html',
+        redirectUri: location.origin,
         // The SPA's id. The SPA is registerd with this id at the auth-server
         // clientId: 'server.code',
         clientId: this.appConfig.keycloak.clientId,
@@ -45,10 +60,10 @@ export class AuthService implements OnDestroy {
       //this.oAuthService.setupAutomaticSilentRefresh();
       this.events$ = this.oAuthService.events.pipe().subscribe((event: OAuthEvent) => {
         this.debug(event);
-        if (event.type in ["token_refresh_error", "silent_refresh_error", "invalid_nonce_in_state"]) {
-          console.debug("RELOADING FROM EVENT");
-          this.logout();
-        }
+        //if (event.type in ["token_refresh_error", "silent_refresh_error", "invalid_nonce_in_state"]) {
+          //console.debug("RELOADING FROM EVENT");
+          //this.logout();
+        //}
       });
 
       this.oAuthService.loadDiscoveryDocument().then(() => {
@@ -57,15 +72,13 @@ export class AuthService implements OnDestroy {
         },
         (reason) => {
           console.debug("Initialization error", reason);
-          resolve(false)
+          resolve(false);
         }
       ).catch(e => {
         console.debug("Initialization exception", e);
         resolve(false);
       });
     });
-
-
   }
 
   ngOnDestroy(): void {
@@ -73,16 +86,20 @@ export class AuthService implements OnDestroy {
     this.events$?.unsubscribe();
   }
 
-  public logout = (): void => {
+  public logout = (resolve: ResolveType | undefined): void => {
     this.debug("Logging out");
     sessionStorage.removeItem("initialized")
     this.resetAuthContext();
     this.events$?.unsubscribe();
-    try {
-      this.oAuthService.logOut();
-    } catch (e) {
-      console.debug("Logout error", e);
-    }
+    this.oAuthService.revokeTokenAndLogout().then(_ => {
+        if (resolve) resolve(false);
+        this.debug("Logged out successfully");
+      }, reason => {
+        this.debug("Logging out error", reason);
+      }
+    ).catch(e => {
+      this.debug("Logging out exception", e);
+    });
   }
 
   private accessTokenIsExpired(): boolean {
@@ -133,38 +150,36 @@ export class AuthService implements OnDestroy {
         resolve(true);
       }, reason => {
         this.debug("Refresh access_token error reason", reason);
-        resolve(false);
-        this.logout();
+        this.logout(resolve);
       })
     } catch (e) {
       this.debug("Refresh access_token exception:", e);
-      resolve(false);
-      this.logout();
+      this.logout(resolve);
     }
   }
 
   private login(resolve: ResolveType): void {
     this.resetAuthContext();
     this.debug("Logging in");
-    this.oAuthService.loadDiscoveryDocumentAndLogin().then(_ => {
-      this.debug("Logged in successfully", this.oAuthService.tokenEndpoint);
+    this.oAuthService.loadDiscoveryDocumentAndLogin().then(loggedIn => {
+      if (loggedIn) {
+        this.debug("Logged in successfully");
+      } else {
+        this.debug("Not logged in");
+      }
       resolve(true);
-      // if (isLoggedIn) {
-      //   this.debug("Logged in successfully", this.oAuthService.tokenEndpoint);
-      //   resolve(true);
-      // } else {
-      //   this.debug("Not logged in");
-      //   resolve(false);
-      // }
     }, error => {
       this.debug("Login error", error);
+      resolve(false);
+    }).catch(e => {
+      this.debug("Login exception", e);
       resolve(false);
     });
   }
 
   private _isAuthenticated(resolve: ResolveType) {
-    const initialized = !!this.oAuthService.getAccessToken();
-    if (!initialized) {
+    const notLoggedIn = !!this.oAuthService.getAccessToken();
+    if (!notLoggedIn) {
       this.login(resolve);
     } else if (this.accessTokenIsValid()) {
       this.debug("Already logged in");
@@ -172,7 +187,7 @@ export class AuthService implements OnDestroy {
     } else if (this.refreshTokenIsValid()) {
       this.refreshToken(resolve);
     } else {
-      this.logout();
+      this.logout(resolve);
     }
   }
 
@@ -209,7 +224,7 @@ export class AuthService implements OnDestroy {
 
     const accessToken = this.getAccessTokenClaims();
     if (!accessToken) {
-      this.debug("getAuthContext: NO VALID ACCESS TOKEN")
+      //this.debug("getAuthContext: NO VALID ACCESS TOKEN");
       return null;
     }
     this.debug("getAuthContext token:", accessToken);
@@ -233,6 +248,6 @@ export class AuthService implements OnDestroy {
   }
 
   private debug(...args: any[]): void {
-    console.debug("AuthService:", ...args)
+    console.debug("AuthService:", ...args);
   }
 }
