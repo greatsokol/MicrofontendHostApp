@@ -4,20 +4,6 @@ import {AuthContext, ResolveType} from "./types/authcontext";
 import {AppConfig} from "./types/appconfig";
 import {Subscription} from "rxjs";
 
-const storageKeys: string[] = ["PKCE_verifier",
-  "access_token",
-  "access_token_stored_at",
-  "expires_at",
-  "granted_scopes",
-  "id_token",
-  "id_token_claims_obj",
-  "id_token_expires_at",
-  "id_token_stored_at",
-  "kc-users-session",
-  "nonce",
-  "refresh_token",
-  "session_state"];
-
 @Injectable({
   providedIn: 'root'
 })
@@ -25,15 +11,12 @@ export class AuthService implements OnDestroy {
   private authContext: AuthContext | null = null;
   private events$: Subscription | null = null;
 
-
   constructor(private oAuthService: OAuthService, @Inject('appConfig') private readonly appConfig: AppConfig) {
     this.debug("Constructor host");
   }
 
   private initialize() {//resolve: ResolveType
     return new Promise<boolean>((resolve: ResolveType) => {
-      storageKeys.forEach(key => localStorage.removeItem(key));
-
       const authConfig: AuthConfig = {
         // Url of the Identity Provider
         issuer: this.appConfig.keycloak.issuer,
@@ -61,8 +44,8 @@ export class AuthService implements OnDestroy {
       this.events$ = this.oAuthService.events.pipe().subscribe((event: OAuthEvent) => {
         this.debug(event);
         //if (event.type in ["token_refresh_error", "silent_refresh_error", "invalid_nonce_in_state"]) {
-          //console.debug("RELOADING FROM EVENT");
-          //this.logout();
+        //console.debug("RELOADING FROM EVENT");
+        //this.logout();
         //}
       });
 
@@ -96,9 +79,11 @@ export class AuthService implements OnDestroy {
         this.debug("Logged out successfully");
       }, reason => {
         this.debug("Logging out error", reason);
+        if (resolve) resolve(false);
       }
     ).catch(e => {
       this.debug("Logging out exception", e);
+      if (resolve) resolve(false);
     });
   }
 
@@ -196,7 +181,7 @@ export class AuthService implements OnDestroy {
       const notInitialized: boolean = !this.oAuthService.tokenEndpoint;
       if (notInitialized) {
         this.initialize().then(success => {
-          if(success){
+          if (success) {
             this._isAuthenticated(resolve);
           } else {
             resolve(false);
