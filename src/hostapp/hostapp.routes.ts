@@ -1,6 +1,5 @@
 import {loadRemoteModule} from "@angular-architects/module-federation";
 import {Routes} from "@angular/router";
-import {canActivate} from "./auth.guard";
 
 export const APP_ROUTES: Routes = [
   {
@@ -15,10 +14,10 @@ export const APP_ROUTES: Routes = [
   {
     path: "example",
     loadChildren: () => loadRemoteModule({
-        type: "manifest",
-        remoteName: "mf_example",
-        exposedModule: "./ExampleModule"
-      }).then(m => m.ExposingModule)
+      type: "manifest",
+      remoteName: "mf_example",
+      exposedModule: "./ExampleModule"
+    }).then(m => m.ExposingModule)
   },
   {
     path: "",
