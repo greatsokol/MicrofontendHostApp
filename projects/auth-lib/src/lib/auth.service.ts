@@ -195,8 +195,12 @@ export class AuthService implements OnDestroy {
     return new Promise<boolean>((resolve: ResolveType): void => {
       const notInitialized: boolean = !this.oAuthService.tokenEndpoint;
       if (notInitialized) {
-        this.initialize().then(_ => {
-          this._isAuthenticated(resolve);
+        this.initialize().then(success => {
+          if(success){
+            this._isAuthenticated(resolve);
+          } else {
+            resolve(false);
+          }
         });
       } else {
         this._isAuthenticated(resolve);
