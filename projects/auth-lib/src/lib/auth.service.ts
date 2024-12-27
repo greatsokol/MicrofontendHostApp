@@ -1,37 +1,195 @@
-import {Inject, inject, Injectable} from "@angular/core";
-import {AuthConfig, OAuthService} from "angular-oauth2-oidc";
+import {Inject, Injectable, OnDestroy} from "@angular/core";
+import {AuthConfig, OAuthEvent, OAuthService} from "angular-oauth2-oidc";
 import {AuthContext} from "./types/authcontext";
 import {AppConfig} from "./types/appconfig";
-import {BehaviorSubject, Observable} from "rxjs";
-import {filter} from "rxjs/operators";
+import {Subscription} from "rxjs";
+
+type ResolveType = (value: boolean | PromiseLike<boolean>) => void;
 
 @Injectable({
   providedIn: 'root'
 })
-export class AuthService {
-  private oAuthService = inject(OAuthService);
-  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
-  private isAuthenticated = this.isAuthenticatedSubject.asObservable();
+export class AuthService implements OnDestroy {
   private authContext: AuthContext | null = null;
+  private events$: Subscription | null = null;
 
-  constructor(@Inject('appConfig') private readonly appConfig: AppConfig) {
-    this.initializeOAuth(this.oAuthService, this.appConfig);
+  constructor(private oAuthService: OAuthService, @Inject('appConfig') private readonly appConfig: AppConfig) {
+    this.debug("Constructor host");
+  }
+
+  private initialize() {//resolve: ResolveType
+    return new Promise<boolean>((resolve: ResolveType) => {
+      const authConfig: AuthConfig = {
+        // Url of the Identity Provider
+        issuer: this.appConfig.keycloak.issuer,
+        // URL of the SPA to redirect the user to after login
+        redirectUri: location.origin,// + '/index.html',
+        // The SPA's id. The SPA is registerd with this id at the auth-server
+        // clientId: 'server.code',
+        clientId: this.appConfig.keycloak.clientId,
+        // Just needed if your auth server demands a secret. In general, this
+        // is a sign that the auth server is not configured with SPAs in mind
+        // and it might not enforce further best practices vital for security
+        // such applications.
+        // dummyClientSecret: 'secret',
+        responseType: 'code',
+        // set the scope for the permissions the client should request
+        // The first four are defined by OIDC.
+        // Important: Request offline_access to get a refresh token
+        // The api scope is a usecase specific one
+        scope: 'openid', //profile email offline_access api
+        showDebugInformation: true
+      };
+      console.debug("Initialization", authConfig);
+      this.oAuthService.configure(authConfig);
+      //this.oAuthService.setupAutomaticSilentRefresh();
+      this.events$ = this.oAuthService.events.pipe().subscribe((event: OAuthEvent) => {
+        this.debug(event);
+        if (event.type in ["token_refresh_error", "silent_refresh_error", "invalid_nonce_in_state"]) {
+          console.debug("RELOADING FROM EVENT");
+          this.logout();
+        }
+      });
+
+      this.oAuthService.loadDiscoveryDocument().then(() => {
+          this.debug("Initialization success");
+          resolve(true);
+        },
+        (reason) => {
+          console.debug("Initialization error", reason);
+          resolve(false)
+        }
+      ).catch(e => {
+        console.debug("Initialization exception", e);
+        resolve(false);
+      });
+    });
+
+
+  }
+
+  ngOnDestroy(): void {
+    this.debug("ON DESTROY");
+    this.events$?.unsubscribe();
   }
 
   public logout = (): void => {
+    this.debug("Logging out");
+    sessionStorage.removeItem("initialized")
     this.resetAuthContext();
-    this.oAuthService.logOut();
+    this.events$?.unsubscribe();
+    try {
+      this.oAuthService.logOut();
+    } catch (e) {
+      console.debug("Logout error", e);
+    }
   }
 
-  public isLoggedIn(): boolean {
-    return this.oAuthService.hasValidAccessToken();
+  private accessTokenIsExpired(): boolean {
+    const now: number = Date.now();
+    const expiration: number = this.oAuthService.getAccessTokenExpiration();
+    //const siat: string | null = sessionStorage.getItem("access_token_stored_at");
+    //const iat: number = siat && Number.isInteger(siat) ? Number.parseInt(siat) : 0;
+    //const expiration = iat ? exp - (exp - iat) * .3 : exp;  // 70% of expiration interval
+    this.debug(now, expiration, expiration < now ? "access_token expired" : "access_token not expired");
+    return expiration < now;
   }
 
-  public onLoggedIn(): Observable<boolean> {
-    return this.isAuthenticated;
+  private accessTokenIsValid = (): boolean => {
+    return this.oAuthService.hasValidAccessToken() && !this.accessTokenIsExpired();
   }
 
-  private getDecodedAccessToken = () => {
+  private refreshTokenIsValid(): boolean {
+    try {
+      const rawRefreshToken = this.oAuthService.getRefreshToken();
+      if (!rawRefreshToken) return false;
+      const refreshToken: any = JSON.parse(atob(rawRefreshToken.split('.')[1]));
+      // const type: string = refreshToken.typ;
+      // if (type.toLowerCase() == "offline") {
+      //   this.debug("Offline refresh_token")
+      //   return true;
+      // } else if (type.toLowerCase() != "refresh") {
+      //   this.debug("Unknown type of refresh_token", type);
+      //   return false;
+      // }
+      //const iat: number = refreshToken.iat * 1000;
+      const expiration: number = refreshToken.exp * 1000;
+      //const expiration: number = exp - (exp - iat) * .3; // 70% of expiration interval
+      const now: number = Date.now();
+      this.debug(now, expiration, expiration < now ? "refresh_token expired" : "refresh_token not expired");
+      return expiration > now;
+    } catch (e) {
+      this.debug("Can validate refresh_token", e);
+      return false;
+    }
+  }
+
+  private refreshToken(resolve: ResolveType): void {
+    this.resetAuthContext();
+    try {
+      console.log("Refreshing access_token", this.oAuthService.tokenEndpoint);
+      this.oAuthService.refreshToken().then(_ => {
+        this.debug("Refreshed access_token successfully");
+        resolve(true);
+      }, reason => {
+        this.debug("Refresh access_token error reason", reason);
+        resolve(false);
+        this.logout();
+      })
+    } catch (e) {
+      this.debug("Refresh access_token exception:", e);
+      resolve(false);
+      this.logout();
+    }
+  }
+
+  private login(resolve: ResolveType): void {
+    this.resetAuthContext();
+    this.debug("Logging in");
+    this.oAuthService.loadDiscoveryDocumentAndLogin().then(_ => {
+      this.debug("Logged in successfully", this.oAuthService.tokenEndpoint);
+      resolve(true);
+      // if (isLoggedIn) {
+      //   this.debug("Logged in successfully", this.oAuthService.tokenEndpoint);
+      //   resolve(true);
+      // } else {
+      //   this.debug("Not logged in");
+      //   resolve(false);
+      // }
+    }, error => {
+      this.debug("Login error", error);
+      resolve(false);
+    });
+  }
+
+  private _isAuthenticated(resolve: ResolveType) {
+    const initialized = !!this.oAuthService.getAccessToken();
+    if (!initialized) {
+      this.login(resolve);
+    } else if (this.accessTokenIsValid()) {
+      this.debug("Already logged in");
+      resolve(true);
+    } else if (this.refreshTokenIsValid()) {
+      this.refreshToken(resolve);
+    } else {
+      this.logout();
+    }
+  }
+
+  public isAuthenticated = (): Promise<boolean> => {
+    return new Promise<boolean>((resolve: ResolveType): void => {
+      const notInitialized: boolean = !this.oAuthService.tokenEndpoint;
+      if (notInitialized) {
+        this.initialize().then(_ => {
+          this._isAuthenticated(resolve);
+        });
+      } else {
+        this._isAuthenticated(resolve);
+      }
+    });
+  }
+
+  private getAccessTokenClaims(): null | any {
     const rawAccessToken = this.oAuthService.getAccessToken();
     if (!rawAccessToken) {
       return null;
@@ -39,7 +197,7 @@ export class AuthService {
     return JSON.parse(atob(rawAccessToken.split('.')[1]));
   }
 
-  private getAllRolesWithGroups = (accessToken: any) => {
+  private getAllRolesWithGroups(accessToken: any): any {
     if (!accessToken) return [];
     const groups = accessToken ? accessToken['groups'] : null; // "groups" claim is a PSB specific
     const roles = accessToken["realm_access"]["roles"];
@@ -49,12 +207,12 @@ export class AuthService {
   public getAuthContext = (): null | AuthContext => {
     if (this.authContext) return this.authContext;
 
-    const accessToken = this.getDecodedAccessToken();
+    const accessToken = this.getAccessTokenClaims();
     if (!accessToken) {
-      console.debug("getAuthContext: NO VALID ACCESS TOKEN")
+      this.debug("getAuthContext: NO VALID ACCESS TOKEN")
       return null;
     }
-    console.debug("getAuthContext token:", accessToken);
+    this.debug("getAuthContext token:", accessToken);
 
     const preferred_username: string = accessToken ? accessToken["preferred_username"] : "";
     const userRoles = this.getAllRolesWithGroups(accessToken);
@@ -67,73 +225,14 @@ export class AuthService {
       sessionId: sessionId
     };
 
-    return this.authContext;
+    return Object.assign({}, this.authContext);
   }
 
-  private resetAuthContext = () => {
+  private resetAuthContext(): void {
     this.authContext = null;
   }
 
-  private initializeOAuth = (oAuthService: OAuthService, appConfig: AppConfig) => {
-    const authConfig: AuthConfig = {
-      // Url of the Identity Provider
-      issuer: appConfig.keycloak.issuer,
-      // URL of the SPA to redirect the user to after login
-      redirectUri: window.location.origin,// + '/index.html',
-      // The SPA's id. The SPA is registerd with this id at the auth-server
-      // clientId: 'server.code',
-      clientId: appConfig.keycloak.clientId,
-      // Just needed if your auth server demands a secret. In general, this
-      // is a sign that the auth server is not configured with SPAs in mind
-      // and it might not enforce further best practices vital for security
-      // such applications.
-      // dummyClientSecret: 'secret',
-      responseType: 'code',
-      // set the scope for the permissions the client should request
-      // The first four are defined by OIDC.
-      // Important: Request offline_access to get a refresh token
-      // The api scope is a usecase specific one
-      scope: 'openid', //profile email offline_access api
-      showDebugInformation: true,
-    };
-    oAuthService.configure(authConfig);
-    oAuthService.setupAutomaticSilentRefresh();
-    oAuthService.events
-      .pipe(filter((e: any) => e.type === "token_received"))
-      .subscribe(() => {
-        this.resetAuthContext();
-        console.debug("token_received");
-      });
-    oAuthService.events
-      .pipe(filter((e: any) => e.type === "token_error"))
-      .subscribe(() => {
-        this.resetAuthContext();
-        console.debug("token_error");
-        this.logout();
-      });
-    oAuthService.events
-      .pipe(filter((e: any) => e.type === "token_expired"))
-      .subscribe(() => {
-        this.resetAuthContext();
-        console.debug("token_expired");
-      });
-    oAuthService.events
-      .subscribe(() => {
-        this.isAuthenticatedSubject.next(this.oAuthService.hasValidAccessToken())
-      });
-
-    oAuthService.loadDiscoveryDocumentAndLogin().then(isLoggedIn => {
-      this.resetAuthContext();
-      if (isLoggedIn) {
-        console.debug("Logged in successfully");
-      } else {
-        console.debug("Not logged in");
-      }
-    }, error => {
-      console.debug({error});
-      if (error.status === 400) {
-        location.reload();
-      }
-    });
+  private debug(...args: any[]): void {
+    console.debug("AuthService:", ...args)
   }
 }

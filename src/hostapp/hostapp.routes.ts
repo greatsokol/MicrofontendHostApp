@@ -1,5 +1,6 @@
 import {loadRemoteModule} from "@angular-architects/module-federation";
 import {Routes} from "@angular/router";
+import {canActivate} from "./auth.guard";
 
 export const APP_ROUTES: Routes = [
   {
