@@ -13,10 +13,11 @@ export class AuthService implements OnDestroy {
 
   constructor(private oAuthService: OAuthService, @Inject('appConfig') private readonly appConfig: AppConfig) {
     this.debug("Constructor host");
+
   }
 
   private initialize() {//resolve: ResolveType
-    return new Promise<boolean>((resolve: ResolveType) => {
+    return new Promise<boolean>((resolve: ResolveType): void => {
       const authConfig: AuthConfig = {
         // Url of the Identity Provider
         issuer: this.appConfig.keycloak.issuer,
@@ -36,12 +37,13 @@ export class AuthService implements OnDestroy {
         // Important: Request offline_access to get a refresh token
         // The api scope is a usecase specific one
         scope: 'openid', //profile email offline_access api
-        showDebugInformation: true
+        showDebugInformation: true,
+        clockSkewInSec: 10
       };
       console.debug("Initialization", authConfig);
       this.oAuthService.configure(authConfig);
       //this.oAuthService.setupAutomaticSilentRefresh();
-      this.events$ = this.oAuthService.events.pipe().subscribe((event: OAuthEvent) => {
+      this.events$ = this.oAuthService.events.pipe().subscribe((event: OAuthEvent): void => {
         this.debug(event);
         //if (event.type in ["token_refresh_error", "silent_refresh_error", "invalid_nonce_in_state"]) {
         //console.debug("RELOADING FROM EVENT");
@@ -49,15 +51,15 @@ export class AuthService implements OnDestroy {
         //}
       });
 
-      this.oAuthService.loadDiscoveryDocument().then(() => {
+      this.oAuthService.loadDiscoveryDocument().then((): void => {
           this.debug("Initialization success");
           resolve(true);
         },
-        (reason) => {
+        (reason: any): void => {
           console.debug("Initialization error", reason);
           resolve(false);
         }
-      ).catch(e => {
+      ).catch((e: any): void => {
         console.debug("Initialization exception", e);
         resolve(false);
       });
@@ -77,28 +79,14 @@ export class AuthService implements OnDestroy {
     this.oAuthService.revokeTokenAndLogout().then(_ => {
         if (resolve) resolve(false);
         this.debug("Logged out successfully");
-      }, reason => {
+      }, (reason: any) => {
         this.debug("Logging out error", reason);
         if (resolve) resolve(false);
       }
-    ).catch(e => {
+    ).catch((e: any) => {
       this.debug("Logging out exception", e);
       if (resolve) resolve(false);
     });
-  }
-
-  private accessTokenIsExpired(): boolean {
-    const now: number = Date.now();
-    const expiration: number = this.oAuthService.getAccessTokenExpiration();
-    //const siat: string | null = sessionStorage.getItem("access_token_stored_at");
-    //const iat: number = siat && Number.isInteger(siat) ? Number.parseInt(siat) : 0;
-    //const expiration = iat ? exp - (exp - iat) * .3 : exp;  // 70% of expiration interval
-    this.debug(now, expiration, expiration < now ? "access_token expired" : "access_token not expired");
-    return expiration < now;
-  }
-
-  private accessTokenIsValid = (): boolean => {
-    return this.oAuthService.hasValidAccessToken() && !this.accessTokenIsExpired();
   }
 
   private refreshTokenIsValid(): boolean {
@@ -106,14 +94,11 @@ export class AuthService implements OnDestroy {
       const rawRefreshToken = this.oAuthService.getRefreshToken();
       if (!rawRefreshToken) return false;
       const refreshToken: any = JSON.parse(atob(rawRefreshToken.split('.')[1]));
-      // const type: string = refreshToken.typ;
-      // if (type.toLowerCase() == "offline") {
-      //   this.debug("Offline refresh_token")
-      //   return true;
-      // } else if (type.toLowerCase() != "refresh") {
-      //   this.debug("Unknown type of refresh_token", type);
-      //   return false;
-      // }
+      const type: string = refreshToken.typ;
+      if (type.toLowerCase() != "refresh") {
+        this.debug("Unsupported type of refresh_token", type);
+        return false;
+      }
       //const iat: number = refreshToken.iat * 1000;
       const expiration: number = refreshToken.exp * 1000;
       //const expiration: number = exp - (exp - iat) * .3; // 70% of expiration interval
@@ -133,7 +118,7 @@ export class AuthService implements OnDestroy {
       this.oAuthService.refreshToken().then(_ => {
         this.debug("Refreshed access_token successfully");
         resolve(true);
-      }, reason => {
+      }, (reason: any) => {
         this.debug("Refresh access_token error reason", reason);
         this.logout(resolve);
       })
@@ -146,28 +131,28 @@ export class AuthService implements OnDestroy {
   private login(resolve: ResolveType): void {
     this.resetAuthContext();
     this.debug("Logging in");
-    this.oAuthService.loadDiscoveryDocumentAndLogin().then(loggedIn => {
+    this.oAuthService.loadDiscoveryDocumentAndLogin().then((loggedIn: boolean) => {
       if (loggedIn) {
         this.debug("Logged in successfully");
       } else {
         this.debug("Not logged in");
       }
       resolve(true);
-    }, error => {
+    }, (error: any) => {
       this.debug("Login error", error);
       resolve(false);
-    }).catch(e => {
+    }).catch((e: any) => {
       this.debug("Login exception", e);
       resolve(false);
     });
   }
 
   private _isAuthenticated(resolve: ResolveType) {
-    const notLoggedIn = !!this.oAuthService.getAccessToken();
+    const notLoggedIn: boolean = !!this.oAuthService.getAccessToken();
     if (!notLoggedIn) {
       this.login(resolve);
-    } else if (this.accessTokenIsValid()) {
-      this.debug("Already logged in");
+    } else if (this.oAuthService.hasValidAccessToken()) {
+      this.debug("access_token is valid");
       resolve(true);
     } else if (this.refreshTokenIsValid()) {
       this.refreshToken(resolve);
@@ -194,17 +179,17 @@ export class AuthService implements OnDestroy {
   }
 
   private getAccessTokenClaims(): null | any {
-    const rawAccessToken = this.oAuthService.getAccessToken();
+    const rawAccessToken: string = this.oAuthService.getAccessToken();
     if (!rawAccessToken) {
       return null;
     }
     return JSON.parse(atob(rawAccessToken.split('.')[1]));
   }
 
-  private getAllRolesWithGroups(accessToken: any): any {
+  private getAllRolesWithGroups(accessToken: any): string[] {
     if (!accessToken) return [];
-    const groups = accessToken ? accessToken['groups'] : null; // "groups" claim is a PSB specific
-    const roles = accessToken["realm_access"]["roles"];
+    const groups: string[] | null = accessToken ? accessToken['groups'] : null; // "groups" claim is a PSB specific
+    const roles: string[] = accessToken["realm_access"]["roles"];
     return groups ? roles.concat(groups) : roles;
   }
 
@@ -219,8 +204,8 @@ export class AuthService implements OnDestroy {
     this.debug("getAuthContext token:", accessToken);
 
     const preferred_username: string = accessToken ? accessToken["preferred_username"] : "";
-    const userRoles = this.getAllRolesWithGroups(accessToken);
-    const sessionId = accessToken ? accessToken["sid"] : "";
+    const userRoles: string[] = this.getAllRolesWithGroups(accessToken);
+    const sessionId: string = accessToken ? accessToken["sid"] : "";
 
     this.authContext = {
       userName: preferred_username,
