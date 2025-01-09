@@ -42,7 +42,6 @@ export class AuthService implements OnDestroy {
       };
       console.debug("Initialization", authConfig);
       this.oAuthService.configure(authConfig);
-      //this.oAuthService.setupAutomaticSilentRefresh();
       this.events$ = this.oAuthService.events.pipe().subscribe((event: OAuthEvent): void => {
         this.debug(event);
         //if (event.type in ["token_refresh_error", "silent_refresh_error", "invalid_nonce_in_state"]) {
@@ -73,12 +72,11 @@ export class AuthService implements OnDestroy {
 
   public logout = (resolve: ResolveType | undefined): void => {
     this.debug("Logging out");
-    sessionStorage.removeItem("initialized")
     this.resetAuthContext();
     this.events$?.unsubscribe();
-    this.oAuthService.revokeTokenAndLogout().then(_ => {
-        if (resolve) resolve(false);
+    this.oAuthService.revokeTokenAndLogout()?.then(_ => {
         this.debug("Logged out successfully");
+        if (resolve) resolve(false);
       }, (reason: any) => {
         this.debug("Logging out error", reason);
         if (resolve) resolve(false);
@@ -131,9 +129,10 @@ export class AuthService implements OnDestroy {
   private login(resolve: ResolveType): void {
     this.resetAuthContext();
     this.debug("Logging in");
-    this.oAuthService.loadDiscoveryDocumentAndLogin().then((loggedIn: boolean) => {
+    this.oAuthService.tryLogin().then((loggedIn: boolean) => {
       if (loggedIn) {
-        this.debug("Logged in successfully");
+        this.debug("initLoginFlow");
+        this.oAuthService.initLoginFlow();
       } else {
         this.debug("Not logged in");
       }
@@ -141,9 +140,11 @@ export class AuthService implements OnDestroy {
     }, (error: any) => {
       this.debug("Login error", error);
       resolve(false);
+      location.reload();
     }).catch((e: any) => {
       this.debug("Login exception", e);
       resolve(false);
+      location.reload();
     });
   }
 
@@ -214,7 +215,7 @@ export class AuthService implements OnDestroy {
       sessionId: sessionId
     };
 
-    return Object.assign({}, this.authContext);
+    return this.authContext;
   }
 
   private resetAuthContext(): void {
