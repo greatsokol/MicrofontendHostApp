@@ -6,7 +6,8 @@ import {AuthService} from "@@auth-lib";
 
 @Component({
   selector: "host-app-root",
-  templateUrl: "./hostapp.component.html"
+  templateUrl: "./hostapp.component.html",
+  styleUrls: ["./hostapp.component.css"]
 })
 export class HostAppComponent {
   title = "HOST APPLICATION";
