@@ -136,7 +136,7 @@ export class AuthService implements OnDestroy {
       } else {
         this.debug("Not logged in");
       }
-      resolve(true);
+      resolve(false); // not logged in, just redirected to keycloak
     }, (error: any) => {
       this.debug("Login error", error);
       resolve(false);
