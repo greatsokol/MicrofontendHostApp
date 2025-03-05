@@ -1,7 +1,7 @@
 import {NgModule} from "@angular/core";
 import {BrowserModule} from "@angular/platform-browser";
 
-import {HostAppComponent} from "./hostapp.component";
+import {HostAppComponent} from "./hostappcomponent/hostapp.component";
 import {RouterModule} from "@angular/router";
 import {APP_ROUTES} from "./hostapp.routes";
 import {FormsModule} from "@angular/forms";
