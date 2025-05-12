@@ -14,24 +14,30 @@
         <!--            d="M71.7885 20.6274C68.316 20.6274 66.4143 18.1445 66.4143 14.9994C66.4143 12.5165 67.8199 9.3714 71.7059 9.3714C74.1036 9.3714 75.6745 10.8612 76.2533 11.5233L79.3952 8.37822C77.4935 6.14357 74.6824 4.65381 71.4578 4.65381C65.7529 4.65381 61.2881 8.87481 61.2881 14.9994C61.2881 20.7102 65.7529 25.345 71.4578 25.345C74.8477 25.345 77.9069 23.6897 79.7259 21.124L76.584 17.9789C75.5919 19.4687 73.9382 20.6274 71.7885 20.6274Z"-->
         <!--            fill="currentColor"></path>-->
         <!--        </svg>-->
-        АРМ УПРАВЛЕНИЯ МИКРОСЕРВИСАМИ
+        АРМ УПРАВЛЕНИЯ
       </a>
 
       <div class="navbar-collapse">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <li class="nav-item">
-            <a class="nav-link" routerLinkActive="active"
-               routerLink="/example">Демо МФ</a>
-          </li>
-          <li class="nav-item">
+          <!--          <li class="nav-item">-->
+          <!--            <a class="nav-link" routerLinkActive="active"-->
+          <!--               routerLink="/example">Демо МФ</a>-->
+          <!--          </li>-->
+          <li class="nav-item" *ngIf="isAccessAllowed('kcusers')">
             <a class="nav-link" routerLinkActive="active"
                routerLink="/kcusers">Управление пользователями</a>
           </li>
+
+          <li class="nav-item" *ngIf="isAccessAllowed('auth_finstar')">
+            <a class="nav-link" routerLinkActive="active"
+               routerLink="/auth-finstar">Аутентификация ЭБГ/Финстар</a>
+          </li>
+
         </ul>
       </div>
 
       <button aria-current="page" class="btn btn-outline-dark"
-              (click)="this.authService.getAuthContext()?.logoutFunc()">
+              (click)="this.authService.logout()">
         <span>Выйти </span>
         <span class="badge text-bg-primary">{{ this.authService.getAuthContext()?.userName }}</span>
       </button>
@@ -42,6 +48,3 @@
   <router-outlet></router-outlet>
 
 </div>
-<!--<div *ngIf="!this.authService.isLoggedIn()" class="h-100 w-100">-->
-<!--  <div class="spinner-border text-dark"></div>-->
-<!--</div>-->

@@ -1,23 +1,26 @@
 import {NgModule} from "@angular/core";
-import {BrowserModule} from "@angular/platform-browser";
 
 import {HostAppComponent} from "./hostappcomponent/hostapp.component";
 import {RouterModule} from "@angular/router";
 import {APP_ROUTES} from "./hostapp.routes";
-import {FormsModule} from "@angular/forms";
-import {appConfig} from "../config";
-import {AuthModule} from "@@auth-lib";
+import {AUTH_LIB_ALLOWED_ROLES, AUTH_LIB_SETTINGS} from "../config";
+import {AUTH_LIB_ALLOWED_ROLES_TOKEN, AUTH_LIB_SETTINGS_TOKEN, AuthModule} from "oidc-auth-lib";
+import {MatSnackBarModule} from "@angular/material/snack-bar";
+import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
 
 @NgModule({
   imports: [
     AuthModule,
-    BrowserModule,
-    FormsModule,
+    BrowserAnimationsModule,
+    MatSnackBarModule,
     RouterModule.forRoot(APP_ROUTES) //{bindToComponentInputs: true}
   ],
   providers: [
     {
-      provide: 'appConfig', useValue: appConfig
+      provide: AUTH_LIB_SETTINGS_TOKEN, useValue: AUTH_LIB_SETTINGS
+    },
+    {
+      provide: AUTH_LIB_ALLOWED_ROLES_TOKEN, useValue: AUTH_LIB_ALLOWED_ROLES
     }
   ],
   declarations: [

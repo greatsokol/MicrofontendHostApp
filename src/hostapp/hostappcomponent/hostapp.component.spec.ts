@@ -1,7 +1,7 @@
 import {TestBed} from "@angular/core/testing";
 import {RouterTestingModule} from "@angular/router/testing";
 import {HostAppComponent} from "./hostapp.component";
-import {AuthService} from "@@auth-lib";
+import {AuthService} from "oidc-auth-lib";
 import {CUSTOM_ELEMENTS_SCHEMA} from "@angular/core";
 
 describe("HostAppComponent", () => {

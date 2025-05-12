@@ -2,9 +2,6 @@
   "compileOnSave": false,
   "compilerOptions": {
     "paths": {
-      "@@auth-lib": [
-        "dist/auth-lib"
-      ]
     },
     "baseUrl": "./",
     "outDir": "./dist/out-tsc",

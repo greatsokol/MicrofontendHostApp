@@ -17,6 +17,7 @@
         "build": {
           "builder": "ngx-build-plus:browser",
           "options": {
+            "baseHref": "/host/",
             "outputPath": "dist/host",
             "index": "src/index.html",
             "main": "src/main.ts",
@@ -30,7 +31,8 @@
               "src/assets"
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.css",
+              "@angular/material/prebuilt-themes/deeppurple-amber.css"
             ],
             "scripts": [],
             "extraWebpackConfig": "webpack.config.js",
@@ -90,9 +92,10 @@
             "port": 4200,
             "publicHost": "https://localhost:4200",
             "ssl": true,
-            "sslCert": "certs/any.local.crt",
-            "sslKey": "certs/any.local.key",
-            "extraWebpackConfig": "webpack.config.js"
+            "sslCert": "certs/localhost.crt",
+            "sslKey": "certs/localhost.key",
+            "extraWebpackConfig": "webpack.config.js",
+            "disableHostCheck": true
           }
         },
         "extract-i18n": {
@@ -125,40 +128,9 @@
           }
         }
       }
-    },
-    "auth-lib": {
-      "projectType": "library",
-      "root": "projects/auth",
-      "sourceRoot": "projects/auth-lib/src",
-      "prefix": "lib",
-      "architect": {
-        "build": {
-          "builder": "@angular-devkit/build-angular:ng-packagr",
-          "options": {
-            "project": "projects/auth-lib/ng-package.json"
-          },
-          "configurations": {
-            "production": {
-              "tsConfig": "projects/auth-lib/tsconfig.lib.prod.json"
-            },
-            "development": {
-              "tsConfig": "projects/auth-lib/tsconfig.lib.json"
-            }
-          },
-          "defaultConfiguration": "production"
-        },
-        "test": {
-          "builder": "@angular-devkit/build-angular:karma",
-          "options": {
-            "codeCoverage": true,
-            "tsConfig": "projects/auth-lib/tsconfig.spec.json",
-            "polyfills": [
-              "zone.js",
-              "zone.js/testing"
-            ]
-          }
-        }
-      }
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }
