@@ -69,6 +69,10 @@
                 {
                   "replace": "src/hostapp/environments/auth-lib-settings.ts",
                   "with": "src/hostapp/environments/auth-lib-settings.tst.ts"
+                },
+                {
+                  "replace": "src/manifests/mf.manifest.ts",
+                  "with": "src/manifests/mf.manifest.tst.ts"
                 }
               ],
               "optimization": {
@@ -100,6 +104,10 @@
                 {
                   "replace": "src/hostapp/environments/auth-lib-settings.ts",
                   "with": "src/hostapp/environments/auth-lib-settings.prod.ts"
+                },
+                {
+                  "replace": "src/manifests/mf.manifest.ts",
+                  "with": "src/manifests/mf.manifest.prod.ts"
                 }
               ],
               "optimization": {
