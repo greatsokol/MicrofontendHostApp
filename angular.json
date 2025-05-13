@@ -39,6 +39,18 @@
             "commonChunk": false
           },
           "configurations": {
+            "test-env": {
+              "fileReplacements": [
+                {
+                  "replace": "src/hostapp/environments/auth-lib-allowed-roles.ts",
+                  "with": "src/hostapp/environments/auth-lib-allowed-roles.test-env.ts"
+                },
+                {
+                  "replace": "src/hostapp/environments/auth-lib-settings.ts",
+                  "with": "src/hostapp/environments/auth-lib-settings.test-env.ts"
+                }
+              ]
+            },
             "production": {
               "optimization": {
                 "styles": {
