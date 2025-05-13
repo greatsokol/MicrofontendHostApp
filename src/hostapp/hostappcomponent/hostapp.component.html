@@ -39,7 +39,7 @@
       <button aria-current="page" class="btn btn-outline-dark"
               (click)="this.authService.logout()">
         <span>Выйти </span>
-        <span class="badge text-bg-primary">{{ this.authService.getAuthContext()?.userName }}</span>
+        <span class="badge text-bg-primary">{{ this.authService.getUserName() }}</span>
       </button>
     </div>
   </nav>
