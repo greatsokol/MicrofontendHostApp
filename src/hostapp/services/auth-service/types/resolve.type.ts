@@ -1,0 +1,1 @@
+export type ResolveType = (value: boolean | PromiseLike<boolean>) => void;

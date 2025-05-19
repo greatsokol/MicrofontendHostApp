@@ -1,7 +1,8 @@
 import {Component, inject} from "@angular/core";
 
 import {Router} from "@angular/router";
-import {AuthService} from "oidc-auth-lib";
+import {AuthService} from "../services/auth-service";
+
 
 @Component({
   selector: "host-app-root",

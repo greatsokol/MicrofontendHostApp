@@ -1,4 +1,5 @@
-import {AuthLibAllowedRoles} from "oidc-auth-lib";
+import {AuthLibAllowedRoles} from "../services/auth-service";
+
 
 export const authLibAllowedRoles: AuthLibAllowedRoles = {
   kcusers: {
@@ -10,7 +11,7 @@ export const authLibAllowedRoles: AuthLibAllowedRoles = {
     ]
   },
   auth_finstar: {
-     adminRoles: ['admin'],
-     userRoles: ['user']
-   }
+    adminRoles: ['admin'],
+    userRoles: ['user']
+  }
 }

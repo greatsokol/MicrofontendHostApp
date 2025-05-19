@@ -1,4 +1,4 @@
-import {AuthLibOidcSettings} from "oidc-auth-lib";
+import {AuthLibOidcSettings} from "../services/auth-service";
 
 export const authLibSettings: AuthLibOidcSettings = {
   keycloak: {
