@@ -19,7 +19,7 @@ const loadExtendedManifest = () => {
       return response.json();
     }
   ).then(json => {
-      initFederation(convertExtendedManifest(json))
+      initFederation(convertExtendedManifest(json), true)
         .then(_ => import("./bootstrap"))
         .catch(err => console.error(err));
     }

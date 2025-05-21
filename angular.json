@@ -40,20 +40,6 @@
           },
           "configurations": {
             "production": {
-              "fileReplacements": [
-                {
-                  "replace": "src/hostapp/environments/auth-lib-allowed-roles.ts",
-                  "with": "src/hostapp/environments/auth-lib-allowed-roles.prod.ts"
-                },
-                {
-                  "replace": "src/hostapp/environments/auth-lib-settings.ts",
-                  "with": "src/hostapp/environments/auth-lib-settings.prod.ts"
-                },
-                {
-                  "replace": "src/manifests/mf.manifest.ts",
-                  "with": "src/manifests/mf.manifest.prod.ts"
-                }
-              ],
               "optimization": {
                 "styles": {
                   "inlineCritical": false
