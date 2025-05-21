@@ -1,0 +1,18 @@
+{
+  "mf_kcusers": {
+    "userRoles": [
+      "user"
+    ],
+    "adminRoles": [
+      "admin"
+    ]
+  },
+  "mf_auth_service": {
+    "adminRoles": [
+      "admin"
+    ],
+    "userRoles": [
+      "user"
+    ]
+  }
+}

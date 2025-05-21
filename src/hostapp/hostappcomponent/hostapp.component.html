@@ -1,4 +1,4 @@
-<div xmlns="http://www.w3.org/1999/html" class="container">
+<div xmlns="http://www.w3.org/1999/html" class="container" *ngIf="initCompleted">
   <nav class="navbar navbar-expand-lg bg-body-tertiary">
     <div class="container-fluid">
       <a class="navbar-brand unselectable fw-bold ps-3" routerLink="">
@@ -19,27 +19,19 @@
 
       <div class="navbar-collapse">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <!--          <li class="nav-item">-->
-          <!--            <a class="nav-link" routerLinkActive="active"-->
-          <!--               routerLink="/example">Демо МФ</a>-->
-          <!--          </li>-->
-          <li class="nav-item" *ngIf="isAccessAllowed('kcusers')">
-            <a class="nav-link" routerLinkActive="active"
-               routerLink="/kcusers">Управление пользователями</a>
-          </li>
-
-          <li class="nav-item" *ngIf="isAccessAllowed('auth_finstar')">
-            <a class="nav-link" routerLinkActive="active"
-               routerLink="/auth-finstar">Аутентификация ЭБГ/Финстар</a>
-          </li>
-
+          <ng-container *ngFor="let key of Object.keys(manifest)">
+            <li *ngIf="initCompleted && isAccessAllowed(manifest[key].roles)" class="nav-item">
+              <a class="nav-link" routerLinkActive="active"
+                 routerLink="/{{manifest[key].route}}">{{ manifest[key].name }}</a>
+            </li>
+          </ng-container>
         </ul>
       </div>
 
       <button aria-current="page" class="btn btn-outline-dark"
-              (click)="this.authService.logout()">
+              (click)="authService.logout()" *ngIf="authService.isAuthenticated()">
         <span>Выйти </span>
-        <span class="badge text-bg-primary">{{ this.authService.getUserName() }}</span>
+        <span class="badge text-bg-primary">{{ authService.getUserName() }}</span>
       </button>
     </div>
   </nav>

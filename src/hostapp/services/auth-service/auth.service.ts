@@ -1,35 +1,50 @@
 import {inject, Injectable, OnDestroy} from "@angular/core";
 import {AuthConfig, OAuthEvent, OAuthService} from "angular-oauth2-oidc";
-import {ResolveType} from "./types";
+import {AuthLibAllowedRolesItem, AuthLibOidcSettings, ResolveType} from "./types";
 import {Subscription} from "rxjs";
-import {AUTH_LIB_ALLOWED_ROLES_TOKEN, AUTH_LIB_SETTINGS_TOKEN} from "./tokens";
+import {SettingsService} from "../settings-service";
 
 @Injectable({
-  providedIn: null
+  providedIn: 'root'
 })
 export class AuthService implements OnDestroy {
   private events$: Subscription | null = null;
-  private allowedRoles = inject(AUTH_LIB_ALLOWED_ROLES_TOKEN);
-  private authLibSettings = inject(AUTH_LIB_SETTINGS_TOKEN);
+  private settingsService = inject(SettingsService);
+  private oAuthService = inject(OAuthService)
   private accessTokenClaims: any | null = null;
   private userRoles: string[] | null = null;
   private userName: string | null = null;
   private sessionId: string | null = null;
 
-  constructor(private oAuthService: OAuthService) {
+  constructor() {
     this.debug("Constructor AuthService");
+    this.settingsService.initializationComplete.subscribe(
+      result => {
+        if (result) {
+          if (sessionStorage.getItem('nonce')) this.authenticate();
+        }
+      }
+    )
+  }
+
+  private getRoles(rolesGroup: string): AuthLibAllowedRolesItem {
+    return this.settingsService.getRoles()[rolesGroup];
+  }
+
+  private getOidcSettings(): AuthLibOidcSettings {
+    return this.settingsService.getOidcSettings();
   }
 
   private initialize() {//resolve: ResolveType
     return new Promise<boolean>((resolve: ResolveType): void => {
       const authConfig: AuthConfig = {
         // Url of the Identity Provider
-        issuer: this.authLibSettings.keycloak.issuer,
+        issuer: this.getOidcSettings().keycloak.issuer,
         // URL of the SPA to redirect the user to after login
-        redirectUri: location.origin + '/' + location.pathname,
+        redirectUri: location.origin + location.pathname,
         // The SPA's id. The SPA is registerd with this id at the auth-server
         // clientId: 'server.code',
-        clientId: this.authLibSettings.keycloak.clientId,
+        clientId: this.getOidcSettings().keycloak.clientId,
         // Just needed if your auth server demands a secret. In general, this
         // is a sign that the auth server is not configured with SPAs in mind
         // and it might not enforce further best practices vital for security
@@ -40,7 +55,7 @@ export class AuthService implements OnDestroy {
         // The first four are defined by OIDC.
         // Important: Request offline_access to get a refresh token
         // The api scope is a usecase specific one
-        scope: 'openid', //profile email offline_access api
+        scope: 'api', //profile email offline_access api
         showDebugInformation: true,
         clockSkewInSec: 10
       };
@@ -108,7 +123,7 @@ export class AuthService implements OnDestroy {
       this.debug(now, expiration, expiration < now ? "refresh_token expired" : "refresh_token not expired");
       return expiration > now;
     } catch (e) {
-      this.debug("Can validate refresh_token", e);
+      this.debug("Can't validate refresh_token", e);
       return false;
     }
   }
@@ -160,7 +175,7 @@ export class AuthService implements OnDestroy {
   private isUserHasAllowedRoles = (allowedRoles: string[]) => {
     const tokenRoles = this.getUserRoles();
     if (!tokenRoles || !tokenRoles.length) {
-      console.debug('No roles available!');
+      //console.debug('No roles available in access token!');
       return false;
     }
 
@@ -170,7 +185,7 @@ export class AuthService implements OnDestroy {
   }
 
   private isAdminAccessAllowed(rolesGroupName: string) {
-    const allowedRoles = this.allowedRoles[rolesGroupName]
+    const allowedRoles = this.getRoles(rolesGroupName);
     if (!allowedRoles.adminRoles.length) {
       console.error('Empty allowed admin roles!');
       return false;
@@ -179,7 +194,11 @@ export class AuthService implements OnDestroy {
   }
 
   public isAccessAllowed(rolesGroupName: string) {
-    const allowedRoles = this.allowedRoles[rolesGroupName]
+    const allowedRoles = this.getRoles(rolesGroupName);
+    if (!allowedRoles) {
+      console.error(`No roles for ${rolesGroupName}. Check manifest!`);
+      return false;
+    }
     if (!allowedRoles.userRoles.length && !allowedRoles.adminRoles.length) {
       console.error('Empty allowed user and admin roles!');
       return false;
@@ -188,7 +207,7 @@ export class AuthService implements OnDestroy {
     return this.isUserHasAllowedRoles(allRoles);
   }
 
-  private _isAuthenticated(resolve: ResolveType, rolesGroupName: string | null = null, allowedAdminOnly: boolean | null = null) {
+  private _authenticate(resolve: ResolveType, rolesGroupName: string | null = null, allowedAdminOnly: boolean | null = null) {
     const notLoggedIn: boolean = !!this.oAuthService.getAccessToken();
     if (!notLoggedIn) {
       this.login(resolve);
@@ -210,27 +229,31 @@ export class AuthService implements OnDestroy {
     }
   }
 
-  public isAuthenticated = (rolesGroupName: string | null = null, allowedAdminOnly: boolean | null = null): Promise<boolean> => {
+  public authenticate = (rolesGroupName: string | null = null, allowedAdminOnly: boolean | null = null): Promise<boolean> => {
     return new Promise<boolean>((resolve: ResolveType): void => {
       const notInitialized: boolean = !this.oAuthService.tokenEndpoint;
       if (notInitialized) {
         this.initialize().then(success => {
           if (success) {
-            this._isAuthenticated(resolve, rolesGroupName, allowedAdminOnly);
+            this._authenticate(resolve, rolesGroupName, allowedAdminOnly);
           } else {
             resolve(false);
           }
         });
       } else {
-        this._isAuthenticated(resolve, rolesGroupName, allowedAdminOnly);
+        this._authenticate(resolve, rolesGroupName, allowedAdminOnly);
       }
     });
+  }
+
+  public isAuthenticated() {
+    return this.oAuthService.hasValidAccessToken() || this.refreshTokenIsValid();
   }
 
   private getAccessTokenClaims(): null | any {
     const rawAccessToken: string = this.oAuthService.getAccessToken();
     if (!rawAccessToken) {
-      this.debug("getAccessTokenClaims: NO VALID ACCESS TOKEN");
+      //this.debug("getAccessTokenClaims: NO VALID ACCESS TOKEN");
       return null;
     }
     return JSON.parse(atob(rawAccessToken.split('.')[1]));
@@ -239,8 +262,7 @@ export class AuthService implements OnDestroy {
   private getAllRolesWithGroups(accessToken: any): string[] {
     if (!accessToken) return [];
     const groups: string[] | null = accessToken ? accessToken['groups'] : null; // "groups" claim is a PSB specific
-    const roles: string[] = accessToken["realm_access"]["roles"];
-    return groups ? roles.concat(groups) : roles;
+    return groups ? groups : [];
   }
 
   private resetAuthContext(): void {
@@ -248,10 +270,13 @@ export class AuthService implements OnDestroy {
     this.userRoles = null;
     this.userName = null;
     this.sessionId = null;
+    // localStorage.removeItem('PKCE_verifier');
+    // localStorage.removeItem('nonce');
+    // localStorage.removeItem('session_state');
   }
 
   public getIssuerUri(): string {
-    return this.authLibSettings.keycloak.issuer;
+    return this.getOidcSettings().keycloak.issuer;
   }
 
   public getUserRoles(): string[] | null {

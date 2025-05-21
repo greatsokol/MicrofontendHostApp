@@ -1,0 +1,8 @@
+<div *ngIf="authService.isAuthenticated();else login">
+  Добро пожаловать {{ authService.getUserName() }}. Выберите сервис.
+</div>
+<ng-template #login>
+  <div>
+    <button class="btn btn-outline-dark" (click)="authService.authenticate()">Войти</button>
+  </div>
+</ng-template>

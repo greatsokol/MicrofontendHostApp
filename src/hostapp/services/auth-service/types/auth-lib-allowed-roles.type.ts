@@ -1,4 +1,8 @@
-export type AuthLibAllowedRoles = Record<string, {
+type AuthLibAllowedRolesItem = {
   userRoles: string[],
   adminRoles: string[]
-}>;
+}
+
+type AuthLibAllowedRoles = Record<string, AuthLibAllowedRolesItem>;
+
+export {AuthLibAllowedRolesItem, AuthLibAllowedRoles}

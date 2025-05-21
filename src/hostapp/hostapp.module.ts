@@ -1,33 +1,31 @@
-import {NgModule} from "@angular/core";
+import {APP_INITIALIZER, NgModule} from "@angular/core";
 
 import {HostAppComponent} from "./hostappcomponent/hostapp.component";
 import {RouterModule} from "@angular/router";
-import {APP_ROUTES} from "./hostapp.routes";
 import {MatSnackBarModule} from "@angular/material/snack-bar";
 import {BrowserAnimationsModule} from "@angular/platform-browser/animations";
-import {OAuthModule} from "angular-oauth2-oidc";
-import {HTTP_INTERCEPTORS, HttpClientModule} from "@angular/common/http";
-import {IsAuthenticatedInterceptor} from "./services/auth-service/interceptors";
-import {AuthService} from "./services/auth-service";
+import {AuthModule} from "./services/auth-service";
+import {SettingsService} from "./services/settings-service";
+
+function appLoadFactory(settingsService: SettingsService) {
+  return () => settingsService.loadSettings();
+}
+
 
 @NgModule({
   imports: [
+    AuthModule.forRoot(),
     BrowserAnimationsModule,
     MatSnackBarModule,
-    OAuthModule.forRoot({
-        resourceServer: {
-          allowedUrls: ["http"],
-          sendAccessToken: true
-        }
-      }
-    ),
-    HttpClientModule,
-    RouterModule.forRoot(APP_ROUTES) //{bindToComponentInputs: true}
+    //HttpClientModule,
+    RouterModule.forRoot([]),  //{bindToComponentInputs: true}
   ],
   providers: [
-    AuthService,
     {
-      provide: HTTP_INTERCEPTORS, useClass: IsAuthenticatedInterceptor, multi: true
+      provide: APP_INITIALIZER,
+      useFactory: appLoadFactory,
+      deps: [SettingsService],
+      multi: true
     }
   ],
   declarations: [

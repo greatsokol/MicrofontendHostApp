@@ -18,7 +18,7 @@
           "builder": "ngx-build-plus:browser",
           "options": {
             "baseHref": "/host/",
-            "outputPath": "dist/host",
+            "outputPath": "dist/mf-host",
             "index": "src/index.html",
             "main": "src/main.ts",
             "polyfills": [
@@ -39,62 +39,6 @@
             "commonChunk": false
           },
           "configurations": {
-            "production-dev": {
-              "optimization": {
-                "styles": {
-                  "inlineCritical": false
-                }
-              },
-              "budgets": [
-                {
-                  "type": "initial",
-                  "maximumWarning": "500kb",
-                  "maximumError": "1mb"
-                },
-                {
-                  "type": "anyComponentStyle",
-                  "maximumWarning": "2kb",
-                  "maximumError": "4kb"
-                }
-              ],
-              "outputHashing": "all",
-              "extraWebpackConfig": "webpack.prod.config.js"
-            },
-            "production-test": {
-              "fileReplacements": [
-                {
-                  "replace": "src/hostapp/environments/auth-lib-allowed-roles.ts",
-                  "with": "src/hostapp/environments/auth-lib-allowed-roles.tst.ts"
-                },
-                {
-                  "replace": "src/hostapp/environments/auth-lib-settings.ts",
-                  "with": "src/hostapp/environments/auth-lib-settings.tst.ts"
-                },
-                {
-                  "replace": "src/manifests/mf.manifest.ts",
-                  "with": "src/manifests/mf.manifest.tst.ts"
-                }
-              ],
-              "optimization": {
-                "styles": {
-                  "inlineCritical": false
-                }
-              },
-              "budgets": [
-                {
-                  "type": "initial",
-                  "maximumWarning": "500kb",
-                  "maximumError": "1mb"
-                },
-                {
-                  "type": "anyComponentStyle",
-                  "maximumWarning": "2kb",
-                  "maximumError": "4kb"
-                }
-              ],
-              "outputHashing": "all",
-              "extraWebpackConfig": "webpack.prod.config.js"
-            },
             "production": {
               "fileReplacements": [
                 {

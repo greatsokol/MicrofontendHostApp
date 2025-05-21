@@ -7,7 +7,7 @@ export const canActivate = (allowedRolesGroupName: string): CanActivateFn => {
   return () => {
     return new Promise<boolean>(resolve => {
       console.debug(`Host: Can activate for "${allowedRolesGroupName}"?`);
-      inject(AuthService).isAuthenticated(allowedRolesGroupName, false).then(value => resolve(value)
+      inject(AuthService).authenticate(allowedRolesGroupName, false).then(value => resolve(value)
       );
     });
   };
