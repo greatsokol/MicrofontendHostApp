@@ -39,7 +39,69 @@
             "commonChunk": false
           },
           "configurations": {
-            "production": {
+            "production-tst": {
+              "fileReplacements": [
+                {
+                  "replace": "src/hostapp/environments/mf.manifest.ts",
+                  "with": "src/hostapp/environments/mf.manifest.tst.ts"
+                },
+                {
+                  "replace": "src/hostapp/environments/auth-lib-settings.ts",
+                  "with": "src/hostapp/environments/auth-lib-settings.tst.ts"
+                }
+              ],
+              "optimization": {
+                "styles": {
+                  "inlineCritical": false
+                }
+              },
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "1mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "2kb",
+                  "maximumError": "4kb"
+                }
+              ],
+              "outputHashing": "all",
+              "extraWebpackConfig": "webpack.prod.config.js"
+            },
+            "production-prod": {
+              "fileReplacements": [
+                {
+                  "replace": "src/hostapp/environments/mf.manifest.ts",
+                  "with": "src/hostapp/environments/mf.manifest.prod.ts"
+                },
+                {
+                  "replace": "src/hostapp/environments/auth-lib-settings.ts",
+                  "with": "src/hostapp/environments/auth-lib-settings.prod.ts"
+                }
+              ],
+              "optimization": {
+                "styles": {
+                  "inlineCritical": false
+                }
+              },
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kb",
+                  "maximumError": "1mb"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "2kb",
+                  "maximumError": "4kb"
+                }
+              ],
+              "outputHashing": "all",
+              "extraWebpackConfig": "webpack.prod.config.js"
+            },
+            "production-dev": {
               "optimization": {
                 "styles": {
                   "inlineCritical": false
@@ -70,13 +132,13 @@
               "namedChunks": true
             }
           },
-          "defaultConfiguration": "production"
+          "defaultConfiguration": "production-dev"
         },
         "serve": {
           "builder": "ngx-build-plus:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "host:build:production",
+              "browserTarget": "host:build:production-dev",
               "extraWebpackConfig": "webpack.prod.config.js",
               "headers": {
               }

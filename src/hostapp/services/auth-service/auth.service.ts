@@ -2,15 +2,19 @@ import {inject, Injectable, OnDestroy} from "@angular/core";
 import {AuthConfig, OAuthEvent, OAuthService} from "angular-oauth2-oidc";
 import {AuthLibAllowedRolesItem, AuthLibOidcSettings, ResolveType} from "./types";
 import {Subscription} from "rxjs";
-import {SettingsService} from "../settings-service";
+import {AUTH_LIB_ALLOWED_ROLES_TOKEN, AUTH_LIB_SETTINGS_TOKEN} from "./tokens";
+import {LocationStrategy} from "@angular/common";
+
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService implements OnDestroy {
   private events$: Subscription | null = null;
-  private settingsService = inject(SettingsService);
-  private oAuthService = inject(OAuthService)
+  private oAuthService = inject(OAuthService);
+  private authLibSettings = inject(AUTH_LIB_SETTINGS_TOKEN);
+  private authLibAllowedRoles = inject(AUTH_LIB_ALLOWED_ROLES_TOKEN);
+  private locationStrategy = inject(LocationStrategy);
   private accessTokenClaims: any | null = null;
   private userRoles: string[] | null = null;
   private userName: string | null = null;
@@ -18,21 +22,15 @@ export class AuthService implements OnDestroy {
 
   constructor() {
     this.debug("Constructor AuthService");
-    this.settingsService.initializationComplete.subscribe(
-      result => {
-        if (result) {
-          if (sessionStorage.getItem('nonce')) this.authenticate();
-        }
-      }
-    )
+    if (sessionStorage.getItem('nonce')) this.authenticate();
   }
 
   private getRoles(rolesGroup: string): AuthLibAllowedRolesItem {
-    return this.settingsService.getRoles()[rolesGroup];
+    return this.authLibAllowedRoles[rolesGroup];
   }
 
   private getOidcSettings(): AuthLibOidcSettings {
-    return this.settingsService.getOidcSettings();
+    return this.authLibSettings;
   }
 
   private initialize() {//resolve: ResolveType
@@ -41,7 +39,7 @@ export class AuthService implements OnDestroy {
         // Url of the Identity Provider
         issuer: this.getOidcSettings().keycloak.issuer,
         // URL of the SPA to redirect the user to after login
-        redirectUri: location.origin + location.pathname,
+        redirectUri: location.origin + this.locationStrategy.getBaseHref(),
         // The SPA's id. The SPA is registerd with this id at the auth-server
         // clientId: 'server.code',
         clientId: this.getOidcSettings().keycloak.clientId,
@@ -59,26 +57,26 @@ export class AuthService implements OnDestroy {
         showDebugInformation: true,
         clockSkewInSec: 10
       };
-      console.debug("Initialization", authConfig);
+      console.debug("AuthService: Initialization", authConfig);
       this.oAuthService.configure(authConfig);
       this.events$ = this.oAuthService.events.pipe().subscribe((event: OAuthEvent): void => {
         this.debug(event);
         //if (event.type in ["token_refresh_error", "silent_refresh_error", "invalid_nonce_in_state"]) {
-        //console.debug("RELOADING FROM EVENT");
+        //console.debug("AuthService: RELOADING FROM EVENT");
         //this.logout();
         //}
       });
 
       this.oAuthService.loadDiscoveryDocument().then((): void => {
-          this.debug("Initialization success");
+          this.debug("AuthService: Initialization success");
           resolve(true);
         },
         (reason: any): void => {
-          console.debug("Initialization error", reason);
+          console.debug("AuthService: Initialization error", reason);
           resolve(false);
         }
       ).catch((e: any): void => {
-        console.debug("Initialization exception", e);
+        console.debug("AuthService: Initialization exception", e);
         resolve(false);
       });
     });
@@ -89,7 +87,7 @@ export class AuthService implements OnDestroy {
     this.events$?.unsubscribe();
   }
 
-  public logout = (resolve?: ResolveType): void => {
+  public logout (resolve?: ResolveType): void {
     this.debug("Logging out");
     this.resetAuthContext();
     this.events$?.unsubscribe();
@@ -131,7 +129,7 @@ export class AuthService implements OnDestroy {
   private refreshToken(resolve: ResolveType): void {
     this.resetAuthContext();
     try {
-      console.log("Refreshing access_token", this.oAuthService.tokenEndpoint);
+      console.log("AuthService: Refreshing access_token", this.oAuthService.tokenEndpoint);
       this.oAuthService.refreshToken().then(_ => {
         this.debug("Refreshed access_token successfully");
         resolve(true);
@@ -175,12 +173,12 @@ export class AuthService implements OnDestroy {
   private isUserHasAllowedRoles = (allowedRoles: string[]) => {
     const tokenRoles = this.getUserRoles();
     if (!tokenRoles || !tokenRoles.length) {
-      //console.debug('No roles available in access token!');
+      //console.debug('AuthService: No roles available in access token!');
       return false;
     }
 
     const intersection = this.getRolesIntersection(tokenRoles, allowedRoles);
-    //console.debug(`Roles (${tokenRoles}) intersection with allowed roles ([${allowedRoles}]): ${intersection}`);
+    console.debug(`AuthService: Roles (${tokenRoles}) intersection with allowed roles ([${allowedRoles}]): ${intersection}`);
     return intersection.length > 0;
   }
 

@@ -5,7 +5,9 @@
     "ng": "ng",
     "start": "ng serve host",
     "serve:prod": "ng build host && node scripts/serve.js",
-    "build": "ng build host",
+    "build:dev": "ng build host --configuration production-dev",
+    "build:test": "ng build host --configuration production-test",
+    "build:prod": "ng build host --configuration production-prod",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

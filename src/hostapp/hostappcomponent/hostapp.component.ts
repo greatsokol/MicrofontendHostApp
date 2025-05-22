@@ -1,11 +1,11 @@
-import {Component, inject} from "@angular/core";
+import {Component, inject, OnInit} from "@angular/core";
 
 import {Router, Routes} from "@angular/router";
 import {AuthService} from "../services/auth-service";
-import {SettingsService} from "../services/settings-service";
 import {canActivate} from "../guards/auth.guard";
 import {loadRemoteModule} from "@angular-architects/module-federation";
 import {ExtendedManifestItem} from "../types/extended-manifest.type";
+import {MANIFEST_TOKEN} from "../tokens/manifest.token";
 
 
 @Component({
@@ -14,21 +14,20 @@ import {ExtendedManifestItem} from "../types/extended-manifest.type";
   styleUrls: ["./hostapp.component.css"],
   //changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class HostAppComponent {
+export class HostAppComponent implements OnInit {
   protected readonly authService = inject(AuthService);
   protected readonly router = inject(Router);
-  protected manifest = inject(SettingsService).getManifest();
-  protected initializationComplete = inject(SettingsService).initializationComplete;
-  protected initCompleted = false;
+  protected manifest = inject(MANIFEST_TOKEN);
+  protected showLogoff = false;
+  protected userName: string | null = null;
 
-  constructor() {
-    this.initializationComplete.subscribe(
-      completed => {
-        this.initCompleted = completed;
-      }
-    );
-
+  ngOnInit() {
     this.router.resetConfig(this.generateRoutes());
+
+    if (this.authService.isAuthenticated()) {
+      this.showLogoff = true;
+      this.userName = this.authService.getUserName();
+    }
   }
 
   generateRoutes() {
@@ -36,27 +35,30 @@ export class HostAppComponent {
       path: "",
       loadComponent: () => import("../welcomepage/welcomepage.component").then(c => c.WelcomepageComponent)
     }];
+
     for (const [key, value] of Object.entries<ExtendedManifestItem>(this.manifest)) {
-      routes.push(
-        {
-          path: value.route,
-          canActivate: [canActivate(value.roles)],
-          runGuardsAndResolvers: 'always',
-          loadChildren: () =>
-            loadRemoteModule({
-              type: 'manifest',
-              remoteName: key,
-              exposedModule: "./" + value.module
-            }).then(m => m[value.module])
-        }
-      )
+      if (this.authService.isAccessAllowed(value.roles)) {
+        routes.push(
+          {
+            path: value.route,
+            canActivate: [canActivate(value.roles)],
+            title: value.name,
+            runGuardsAndResolvers: 'always',
+            loadChildren: () =>
+              loadRemoteModule({
+                type: 'manifest',
+                remoteName: key,
+                exposedModule: "./" + value.exposedModule
+              }).then(m => m[value.module])
+          }
+        )
+      }
     }
+
+    routes.push({
+      path: '**', redirectTo: '/', pathMatch: 'full'
+    });
+
     return routes;
-  }
-
-  protected readonly Object = Object;
-
-  isAccessAllowed(roles: any) {
-    return this.authService.isAccessAllowed(roles);
   }
 }

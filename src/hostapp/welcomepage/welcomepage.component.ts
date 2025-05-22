@@ -1,4 +1,4 @@
-import {Component, inject} from '@angular/core';
+import {Component, inject, OnInit} from '@angular/core';
 import {AuthService} from "../services/auth-service";
 import {NgIf} from "@angular/common";
 
@@ -11,6 +11,17 @@ import {NgIf} from "@angular/common";
   ],
   standalone: true
 })
-export class WelcomepageComponent {
+export class WelcomepageComponent implements OnInit {
   authService = inject(AuthService);
+  authenticated = false;
+
+  ngOnInit() {
+    this.authenticated = this.authService.isAuthenticated();
+  }
+
+  authenticate() {
+    this.authService.authenticate().then(result => {
+      this.authenticated = result;
+    })
+  }
 }

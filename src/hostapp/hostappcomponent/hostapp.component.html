@@ -1,4 +1,4 @@
-<div xmlns="http://www.w3.org/1999/html" class="container" *ngIf="initCompleted">
+<div xmlns="http://www.w3.org/1999/html" class="container">
   <nav class="navbar navbar-expand-lg bg-body-tertiary">
     <div class="container-fluid">
       <a class="navbar-brand unselectable fw-bold ps-3" routerLink="">
@@ -19,19 +19,19 @@
 
       <div class="navbar-collapse">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <ng-container *ngFor="let key of Object.keys(manifest)">
-            <li *ngIf="initCompleted && isAccessAllowed(manifest[key].roles)" class="nav-item">
+          <ng-container *ngFor="let route of router.config">
+            <li class="nav-item">
               <a class="nav-link" routerLinkActive="active"
-                 routerLink="/{{manifest[key].route}}">{{ manifest[key].name }}</a>
+                 routerLink="/{{route.path}}">{{ route.title }}</a>
             </li>
           </ng-container>
         </ul>
       </div>
 
       <button aria-current="page" class="btn btn-outline-dark"
-              (click)="authService.logout()" *ngIf="authService.isAuthenticated()">
+              (click)="authService.logout()" *ngIf="showLogoff">
         <span>Выйти </span>
-        <span class="badge text-bg-primary">{{ authService.getUserName() }}</span>
+        <span class="badge text-bg-primary">{{ userName }}</span>
       </button>
     </div>
   </nav>
