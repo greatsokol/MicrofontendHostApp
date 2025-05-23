@@ -13,8 +13,8 @@ export const manifest:ExtendedManifestType = {
   mf_auth_service: {
     uri: "https://localhost:4203/remoteEntry.js",
     route: "auth-finstar",
-    exposedModule: "FinstarAuthServiceModule",
-    module: "FinstarAuthServiceModule",
+    exposedModule: "AuthServiceModule",
+    module: "AuthServiceModule",
     roles: "mf_auth_service",
     name: "Сервис авторизации"
   }

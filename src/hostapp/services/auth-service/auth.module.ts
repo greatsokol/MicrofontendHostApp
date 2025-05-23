@@ -16,7 +16,7 @@ import {IsAuthenticatedInterceptor} from "./interceptors";
     ),
   ],
   providers: [
-    {provide: HTTP_INTERCEPTORS, useClass: IsAuthenticatedInterceptor, multi: true},
+    {provide: HTTP_INTERCEPTORS, useClass: IsAuthenticatedInterceptor, multi: true}
   ]
 })
 export class AuthModule {

@@ -31,7 +31,7 @@
               "src/assets"
             ],
             "styles": [
-              "src/styles.css",
+              "src/styles.scss",
               "@angular/material/prebuilt-themes/deeppurple-amber.css"
             ],
             "scripts": [],
@@ -146,6 +146,7 @@
             "development": {
               "browserTarget": "host:build:development",
               "headers": {
+                "Content-Security-Policy": "default-src 'self' https://kcusers.local https://keycloak.local https://localhost:4202 https://localhost:4203 https://localhost:3000 'nonce-random-nonce'"
               }
             }
           },

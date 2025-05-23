@@ -5,7 +5,7 @@ import {NgIf} from "@angular/common";
 @Component({
   selector: 'app-welcomepage',
   templateUrl: './welcomepage.component.html',
-  styleUrls: ['./welcomepage.component.css'],
+  styleUrls: ['./welcomepage.component.scss'],
   imports: [
     NgIf
   ],

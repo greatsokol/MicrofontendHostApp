@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve host",
-    "serve:prod": "ng build host && node scripts/serve.js",
+    "serve:prod": "ng build host --configuration production-dev && node scripts/serve.js",
     "build:dev": "ng build host --configuration production-dev",
     "build:test": "ng build host --configuration production-test",
     "build:prod": "ng build host --configuration production-prod",

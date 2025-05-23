@@ -11,7 +11,7 @@ import {MANIFEST_TOKEN} from "../tokens/manifest.token";
 @Component({
   selector: "host-app-root",
   templateUrl: "./hostapp.component.html",
-  styleUrls: ["./hostapp.component.css"],
+  styleUrls: ["./hostapp.component.scss"],
   //changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class HostAppComponent implements OnInit {
