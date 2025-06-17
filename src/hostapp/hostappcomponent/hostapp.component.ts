@@ -1,4 +1,4 @@
-import {Component, inject, OnInit} from "@angular/core";
+import {Component, inject, OnDestroy, OnInit} from "@angular/core";
 
 import {Router, Routes} from "@angular/router";
 import {AuthService} from "../services/auth-service";
@@ -6,6 +6,7 @@ import {canActivate} from "../guards/auth.guard";
 import {loadRemoteModule} from "@angular-architects/module-federation";
 import {ExtendedManifestItem} from "../types/extended-manifest.type";
 import {MANIFEST_TOKEN} from "../tokens/manifest.token";
+import {Subscription, takeWhile, tap, timer} from "rxjs";
 
 
 @Component({
@@ -14,20 +15,36 @@ import {MANIFEST_TOKEN} from "../tokens/manifest.token";
   styleUrls: ["./hostapp.component.scss"],
   //changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class HostAppComponent implements OnInit {
+export class HostAppComponent implements OnInit, OnDestroy {
   protected readonly authService = inject(AuthService);
   protected readonly router = inject(Router);
   protected manifest = inject(MANIFEST_TOKEN);
-  protected showLogoff = false;
   protected userName: string | null = null;
+  protected authenticated = false;
+  routerInitialized = false;
+  sub?: Subscription;
 
   ngOnInit() {
     this.router.resetConfig(this.generateRoutes());
+    this.sub = timer(1000, 5000).pipe(
+      tap(_ => {
+        this.authenticated = this.authService.isAuthenticated();
+        if (this.authenticated) {
+          if (!this.routerInitialized) {
+            this.router.resetConfig(this.generateRoutes());
+            this.routerInitialized = true;
+          }
+          this.userName = this.authService.getUserName();
+        } else {
+          this.authService.logout();
+        }
+      }),
+      takeWhile(_ => this.authenticated)
+    ).subscribe();
+  }
 
-    if (this.authService.isAuthenticated()) {
-      this.showLogoff = true;
-      this.userName = this.authService.getUserName();
-    }
+  ngOnDestroy() {
+    this.sub?.unsubscribe();
   }
 
   generateRoutes() {
@@ -56,9 +73,15 @@ export class HostAppComponent implements OnInit {
     }
 
     routes.push({
-      path: '**', redirectTo: '/', pathMatch: 'full'
+      path: '**', redirectTo: '', pathMatch: 'full'
     });
 
     return routes;
+  }
+
+  authenticate() {
+    this.authService.authenticate().then(result => {
+      this.authenticated = result;
+    })
   }
 }

@@ -17,7 +17,6 @@
         "build": {
           "builder": "ngx-build-plus:browser",
           "options": {
-            "baseHref": "/host/",
             "outputPath": "dist/mf-host",
             "index": "src/index.html",
             "main": "src/main.ts",

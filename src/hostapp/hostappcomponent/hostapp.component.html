@@ -18,7 +18,7 @@
       </a>
 
       <div class="navbar-collapse">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0" *ngIf="authenticated">
           <ng-container *ngFor="let route of router.config">
             <li class="nav-item">
               <a class="nav-link" routerLinkActive="active"
@@ -29,7 +29,7 @@
       </div>
 
       <button class="btn btn-outline-dark"
-              (click)="authService.logout()" *ngIf="showLogoff">
+              (click)="authService.logout()" *ngIf="userName">
         <span>Выйти </span>
         <span class="badge text-bg-primary">{{ userName }}</span>
       </button>

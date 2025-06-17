@@ -3,3 +3,10 @@
     font-weight: bolder;
   }
 }
+
+.button-container {
+  display: grid;
+  place-content: center;
+  width: 100%;
+  height: calc(100vh - 200px);
+}
