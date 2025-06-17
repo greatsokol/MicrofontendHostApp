@@ -78,10 +78,4 @@ export class HostAppComponent implements OnInit, OnDestroy {
 
     return routes;
   }
-
-  authenticate() {
-    this.authService.authenticate().then(result => {
-      this.authenticated = result;
-    })
-  }
 }
