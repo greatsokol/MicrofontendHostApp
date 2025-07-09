@@ -7,10 +7,11 @@ const cors = require("cors");
 
 const rootDir = "dist/mf-host";
 const port = 4200;
-const nonce = '1111111';
+const nonce = 'random-nonce';
 const dataUrl = "https://kcusers.local";
 const kcUrl = "https://keycloak.local";
-const allowedUrls = dataUrl + ' ' + kcUrl + ' https://localhost:4202 https://localhost:4203 https://localhost:3000';
+//const allowedUrls = dataUrl + ' ' + kcUrl + ' https://localhost:4202 https://localhost:4203 https://localhost:3000';
+const allowedUrls = dataUrl + ' ' + kcUrl;// + ' https://localhost:4202 https://localhost:4203 https://localhost:3000';
 
 app.use(cors());
 app.use(compression());
@@ -19,20 +20,14 @@ app.all("/*", (req, res) => {
   let data = fs.readFileSync(rootDir + '/index.html', 'utf8');
 
   let data_nonced
-    = data.replaceAll('**CSP_NONCE**', nonce)
-    .replaceAll('<script', '<script nonce="' + nonce + '" ')
-    .replaceAll('<link', '<link nonce="' + nonce + '" ')
-    .replaceAll('<style', '<style nonce="' + nonce + '" ');
+    = data.replaceAll('**CSP_NONCE**', nonce);
 
-  // res.setHeader("Content-Security-Policy",
-  //   "default-src 'self' " + allowedUrls + "; " +
-  //   "img-src 'self' data: image/svg+xml " + allowedUrls + "; " +
-  //   "style-src 'self' 'nonce-" + nonce + "'; " +
-  //   "script-src 'self' 'strict-dynamic' 'nonce-" + nonce + "'; " +
-  //   "font-src 'self' data: " + allowedUrls + ";");
-
-  res.setHeader("Content-Security-Policy",
-    `default-src 'self' ${allowedUrls} 'nonce-${nonce}'`);
+  res.setHeader('Content-Security-Policy',
+    `default-src 'strict-dynamic' 'self' 'nonce-${nonce}';`+
+          `style-src 'strict-dynamic' 'self' 'nonce-${nonce}';`+
+          `script-src 'strict-dynamic' 'self' 'nonce-${nonce}';`+
+          `img-src 'self' data: w3.org/svg/2000;`+
+          `connect-src ${allowedUrls};`);
 
 
   res.setHeader("Access-Control-Allow-Origin", "*");

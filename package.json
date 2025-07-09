@@ -4,10 +4,10 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve host",
-    "serve:prod": "ng build host --configuration production-dev && node scripts/serve.js",
-    "build:dev": "ng build host --configuration production-dev",
-    "build:test": "ng build host --configuration production-test",
-    "build:prod": "ng build host --configuration production-prod",
+    "serve:prod": "ng build host --configuration production-dev && node scripts/post-build.js && node scripts/serve.js",
+    "build:dev": "ng build host --configuration production-dev && node scripts/post-build.js",
+    "build:test": "ng build host --configuration production-test && node scripts/post-build.js",
+    "build:prod": "ng build host --configuration production-prod && node scripts/post-build.js",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },
